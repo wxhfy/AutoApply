@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "AI Job Filler",
+  "version": "1.0.0",
+  "description": "AI-powered resume autofill assistant for job applications",
+  "permissions": ["storage"],
+  "host_permissions": ["<all_urls>"],
+  "action": {
+    "default_popup": "index.html",
+    "default_title": "AI Job Filler"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/content/index.ts"]
+    }
+  ],
+  "background": {
+    "service_worker": "src/background/index.ts"
+  }
+}
