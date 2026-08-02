@@ -418,6 +418,99 @@ body {
   cursor: not-allowed;
 }
 
+/* ─── API Config ─── */
+
+.provider-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.provider-btn {
+  padding: 7px 4px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: white;
+  font-size: 12px;
+  font-weight: 500;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+
+.provider-btn:hover {
+  border-color: #2563eb;
+  color: #2563eb;
+}
+
+.provider-btn.active {
+  border-color: #2563eb;
+  background: #eff6ff;
+  color: #2563eb;
+  font-weight: 600;
+}
+
+.model-select {
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px solid #d1d5db;
+  border-radius: 5px;
+  font-size: 13px;
+  font-family: inherit;
+  background: white;
+  transition: border-color 0.15s;
+}
+
+.model-select:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
+}
+
+.api-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.api-actions .save-button {
+  flex: 1;
+}
+
+.test-button {
+  flex: 1;
+  padding: 9px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: white;
+  color: #374151;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.12s;
+}
+
+.test-button:hover:not(:disabled) {
+  border-color: #2563eb;
+  background: #f8faff;
+}
+
+.test-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.test-button.test-success {
+  border-color: #22c55e;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.test-button.test-error {
+  border-color: #ef4444;
+  background: #fef2f2;
+  color: #991b1b;
+}
+
 /* ─── History ─── */
 
 .history-list {
