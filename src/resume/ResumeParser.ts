@@ -68,7 +68,6 @@ export async function parseResume(
   const content = await chat(apiConfig, {
     systemPrompt: RESUME_PARSE_PROMPT,
     userMessage: `请从以下简历文本中提取结构化信息：\n\n${truncatedText}`,
-    maxTokens: 8192,
   });
 
   console.log(`[ResumeParser] LLM response (${content.length} chars):`, content.slice(0, 200));
