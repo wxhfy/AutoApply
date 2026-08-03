@@ -78,7 +78,8 @@ async function callOpenAI(
   const content: string | undefined = data.choices?.[0]?.message?.content;
 
   if (!content) {
-    throw new Error('LLM 返回空内容');
+    console.error('[LLM callOpenAI] Unexpected response:', JSON.stringify(data).slice(0, 500));
+    throw new Error(`LLM 返回空内容。finish_reason=${data.choices?.[0]?.finish_reason || 'unknown'}`);
   }
 
   return content;
@@ -123,7 +124,8 @@ async function callAnthropic(
   const content: string | undefined = data.content?.[0]?.text;
 
   if (!content) {
-    throw new Error('Anthropic 返回空内容');
+    console.error('[LLM callAnthropic] Unexpected response:', JSON.stringify(data).slice(0, 500));
+    throw new Error(`Anthropic 返回空内容。stop_reason=${data.stop_reason || 'unknown'}`);
   }
 
   return content;

@@ -130,9 +130,9 @@ const ApiConfigEditor: React.FC<Props> = ({ config, onSave }) => {
     try {
       const content = await chat(form, {
         systemPrompt: 'Reply with exactly "OK" and nothing else.',
-        userMessage: 'hi',
+        userMessage: 'ping',
         temperature: 0,
-        maxTokens: 5,
+        maxTokens: 50,
       });
 
       if (content.trim()) {
