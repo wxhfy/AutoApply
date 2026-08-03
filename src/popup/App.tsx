@@ -4,10 +4,9 @@ import { getProfile, saveProfile, getApiConfig, saveApiConfig, addHistory, getHi
 import { createLLMClient } from '../llm';
 import ProfileEditor from './ProfileEditor';
 import ApiConfigEditor from './ApiConfigEditor';
-import FillPreview from './FillPreview';
 import ResumeImport from './ResumeImport';
 
-type Phase = 'config' | 'analyzing' | 'preview' | 'filling' | 'done';
+type Phase = 'config' | 'analyzing';
 type Tab = 'profile' | 'api' | 'import' | 'history';
 
 // ─── Ensure content script is injected ───
@@ -41,7 +40,6 @@ const App: React.FC = () => {
   const [apiConfig, setApiConfig] = useState<ApiConfig | null>(null);
   const [tab, setTab] = useState<Tab>('profile');
   const [phase, setPhase] = useState<Phase>('config');
-  const [proposals, setProposals] = useState<FillProposal[]>([]);
   const [status, setStatus] = useState<StatusMsg | null>(null);
   const [history, setHistory] = useState<FillHistory[]>([]);
 
@@ -126,45 +124,26 @@ const App: React.FC = () => {
         return;
       }
 
-      setProposals(matches);
-      setPhase('preview');
-      setStatus(null);
-    } catch (err) {
-      setStatus({
-        type: 'error',
-        message: err instanceof Error ? err.message : '未知错误',
-      });
-      setPhase('config');
-    }
-  }, [profile, apiConfig]);
+      // Auto-fill: skip preview, fill all fields with value directly
+      const fillable = matches.filter(m => m.value !== null);
 
-  // ── Phase 2: User confirms proposals → Phase 3: Fill ──
-
-  const handleConfirm = useCallback(async (approved: FillProposal[]) => {
-    setPhase('filling');
-    setStatus({ type: 'loading', message: `正在填写 ${approved.length} 个字段...` });
-
-    try {
-      const [tabInfo] = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (!tabInfo?.id) {
-        setStatus({ type: 'error', message: '无法访问当前标签页' });
-        setPhase('preview');
+      if (fillable.length === 0) {
+        setStatus({ type: 'error', message: 'AI 未能匹配任何字段' });
+        setPhase('config');
         return;
       }
 
-      await ensureContentScript(tabInfo.id);
+      setStatus({ type: 'loading', message: `正在填写 ${fillable.length} 个字段...` });
 
       const fillResult = await chrome.tabs.sendMessage(tabInfo.id, {
         type: 'FILL',
-        proposals: approved,
+        proposals: fillable,
       });
 
       if (fillResult.type === 'FILL_RESULT') {
-        const skipped = proposals.length - approved.length;
+        const skipped = matches.length - fillable.length;
         const info: FillHistory = {
           url: tabInfo.url || '',
-          company: proposals.find(p => p.fieldType === 'SCHOOL')?.value ?? undefined,
-          position: undefined,
           timestamp: Date.now(),
           filledCount: fillResult.filled,
           skippedCount: skipped,
@@ -173,32 +152,22 @@ const App: React.FC = () => {
 
         setStatus({
           type: 'success',
-          message: `已填写 ${fillResult.filled} 个字段${skipped > 0 ? `，跳过 ${skipped} 个` : ''}`,
+          message: `✅ 已填写 ${fillResult.filled} 个字段${skipped > 0 ? `，${skipped} 个无法匹配已跳过` : ''}`,
         });
-        setPhase('done');
-        setTimeout(() => {
-          setPhase('config');
-          setStatus(null);
-          setProposals([]);
-        }, 2500);
+        setPhase('config');
+        setTimeout(() => setStatus(null), 4000);
       } else {
         setStatus({ type: 'error', message: fillResult.message });
-        setPhase('preview');
+        setPhase('config');
       }
     } catch (err) {
       setStatus({
         type: 'error',
         message: err instanceof Error ? err.message : '未知错误',
       });
-      setPhase('preview');
+      setPhase('config');
     }
-  }, [proposals]);
-
-  const handleCancel = useCallback(() => {
-    setPhase('config');
-    setProposals([]);
-    setStatus(null);
-  }, []);
+  }, [profile, apiConfig]);
 
   // ── History ──
 
@@ -218,7 +187,7 @@ const App: React.FC = () => {
         <h1>🤖 AI Job Filler</h1>
       </header>
 
-      {/* Tabs — hidden during preview/filling */}
+      {/* Tabs — hidden during analyzing */}
       {phase === 'config' && (
         <nav className="tabs">
           {(['profile', 'api', 'import', 'history'] as Tab[]).map(t => (
@@ -235,19 +204,11 @@ const App: React.FC = () => {
 
       {/* Main Content */}
       <main className="app-main">
-        {phase === 'preview' || phase === 'filling' || phase === 'analyzing' ? (
-          phase === 'analyzing' ? (
-            <div className="analyzing-screen">
-              <div className="spinner" />
-              <p>{status?.message}</p>
-            </div>
-          ) : (
-            <FillPreview
-              proposals={proposals}
-              onConfirm={handleConfirm}
-              onCancel={handleCancel}
-            />
-          )
+        {phase === 'analyzing' ? (
+          <div className="analyzing-screen">
+            <div className="spinner" />
+            <p>{status?.message}</p>
+          </div>
         ) : tab === 'profile' ? (
           <ProfileEditor profile={profile} onSave={handleSaveProfile} />
         ) : tab === 'api' ? (
@@ -267,7 +228,7 @@ const App: React.FC = () => {
             disabled={!canAnalyze}
             onClick={handleAnalyze}
           >
-            {apiConfig && profile ? '🚀 分析页面' : '请先完成配置'}
+            {apiConfig && profile ? '🚀 一键填写' : '请先完成配置'}
           </button>
           {status && (
             <p className={`status status-${status.type}`}>{status.message}</p>
