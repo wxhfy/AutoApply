@@ -3,7 +3,7 @@
   "name": "AI Job Filler",
   "version": "1.0.0",
   "description": "AI-powered resume autofill assistant for job applications",
-  "permissions": ["storage"],
+  "permissions": ["storage", "activeTab", "scripting"],
   "host_permissions": ["<all_urls>"],
   "action": {
     "default_popup": "index.html",

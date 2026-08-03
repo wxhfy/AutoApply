@@ -10,6 +10,27 @@ import ResumeImport from './ResumeImport';
 type Phase = 'config' | 'analyzing' | 'preview' | 'filling' | 'done';
 type Tab = 'profile' | 'api' | 'import' | 'history';
 
+// ─── Ensure content script is injected ───
+
+async function ensureContentScript(tabId: number): Promise<void> {
+  try {
+    await chrome.tabs.sendMessage(tabId, { type: '__PING__' });
+  } catch {
+    // Content script not present — programmatically inject it
+    // Read the content script filename from the manifest
+    const manifest = chrome.runtime.getManifest();
+    const contentScriptFiles = manifest.content_scripts?.[0]?.js;
+    if (!contentScriptFiles?.length) {
+      throw new Error('Content script not found in manifest');
+    }
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: contentScriptFiles,
+    });
+    await new Promise(r => setTimeout(r, 100));
+  }
+}
+
 interface StatusMsg {
   type: 'loading' | 'success' | 'error';
   message: string;
@@ -73,6 +94,9 @@ const App: React.FC = () => {
         return;
       }
 
+      // Ensure content script is injected (handles extension reload / first visit)
+      await ensureContentScript(tabInfo.id);
+
       // Step 1: DOM analysis
       const analyzeResult = await chrome.tabs.sendMessage(tabInfo.id, { type: 'ANALYZE' });
 
@@ -127,6 +151,8 @@ const App: React.FC = () => {
         setPhase('preview');
         return;
       }
+
+      await ensureContentScript(tabInfo.id);
 
       const fillResult = await chrome.tabs.sendMessage(tabInfo.id, {
         type: 'FILL',

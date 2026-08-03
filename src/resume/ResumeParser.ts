@@ -4,55 +4,46 @@ import { chat } from '../llm/chat';
 
 const RESUME_PARSE_PROMPT = `你是一个简历信息抽取系统。从简历文本中提取结构化个人资料。
 
-## 规则
-1. **只提取明确存在的信息** — 文本中没有提到的字段，设为 null 或空字符串。绝对不推测。
-2. **保留原始描述** — 项目描述、工作描述保持原文，不要改写、不要润色、不要总结。
-3. **保留技术栈原文** — technologies 数组中的每个元素必须是原文明确提到的技术。
-4. **保留工作经历细节** — 公司名、职位、时间范围，原文写什么就提取什么。
-5. **技能** — 只提取简历中明确列出的技能，不要推断。
-6. **时间格式** — 保持原文格式（如 "2021.06-2023.08" 或 "2021年6月-2023年8月"）。
+## 核心原则
+**逐字复制原文** — 所有 description、achievements 字段必须是简历原文的逐字摘录，绝对不允许改写、润色、缩写、总结或重新组织语言。如果原文是"负责公司内部CRM系统的前端开发，使用Vue3+TypeScript重构了客户管理模块，将页面加载速度从3.2s优化至0.8s"，你必须原封不动复制这段话。
 
-## JSON 输出格式（严格遵守）
+## 规则
+1. **只提取明确存在的信息** — 文本中没有提到的字段，设为空字符串 ""。绝对不推测、不补充。
+2. **description 必须原文复制** — 把简历中该经历/项目下的所有描述文字完整复制过来，包括换行符。不要总结，不要缩写。
+3. **technologies 只提取明确出现的** — 原文提到什么技术就写什么，不要推断。
+4. **achievements 逐条原文复制** — 简历中每一条成果/亮点作为数组的一个元素，保持原文。
+5. **时间格式** — 保持原文格式，不要统一格式。
+
+## JSON 输出格式
 {
-  "basic": {
-    "name": "张三",
-    "phone": "13800138000",
-    "email": "zhangsan@example.com",
-    "location": "北京市"
-  },
-  "education": {
-    "school": "清华大学",
-    "major": "计算机科学与技术",
-    "degree": "硕士",
-    "graduation": "2025.06"
-  },
+  "basic": { "name": "", "phone": "", "email": "", "location": "" },
+  "education": { "school": "", "major": "", "degree": "", "graduation": "" },
   "experience": [
     {
-      "company": "字节跳动",
-      "role": "前端开发实习生",
-      "description": "负责抖音Web版直播功能的开发和维护，使用React+TypeScript优化首屏加载性能",
-      "startDate": "2024.01",
-      "endDate": "2024.06"
+      "company": "",
+      "role": "",
+      "description": "【逐字复制简历中该经历的全部描述文字】",
+      "startDate": "",
+      "endDate": ""
     }
   ],
   "projects": [
     {
-      "name": "DDL Agent",
-      "description": "一个基于LLM的智能任务管理工具，自动解析用户的自然语言描述生成结构化任务",
-      "technologies": ["TypeScript", "React", "OpenAI API"],
-      "achievements": ["实现自然语言到结构化任务的自动转换", "减少任务管理时间50%"]
+      "name": "",
+      "description": "【逐字复制简历中该项目的全部描述文字】",
+      "technologies": [],
+      "achievements": ["【逐条原文复制】"]
     }
   ],
-  "skills": ["Python", "TypeScript", "React", "SQL", "Docker"],
+  "skills": [],
   "answers": {}
 }
 
-## 注意事项
-- 如果没有工作经验，experience 设为空数组 []
-- 如果没有项目经历，projects 设为空数组 []
-- 如果某个基本信息缺失，设为空字符串 ""
-- achievements 是字符串数组，每条一个成果，没有则 []
-- 只输出 JSON，不要 markdown、不要解释、不要代码块`;
+## 注意
+- 没有工作经验 → experience 设为 []
+- 没有项目经历 → projects 设为 []
+- 某个字段缺失 → 设为 ""
+- 只输出 JSON，不要 markdown 代码块、不要解释`;
 
 export async function parseResume(
   resume: ExtractedResume,
