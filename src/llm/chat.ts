@@ -31,7 +31,10 @@ export async function chat(
 ): Promise<string> {
   const { systemPrompt, userMessage, temperature = 0.1, maxTokens = 4000 } = params;
 
-  if (isAnthropic(apiConfig.endpoint)) {
+  const provider = isAnthropic(apiConfig.endpoint) ? 'anthropic' : 'openai';
+  console.log(`[LLM chat] provider=${provider}, model=${apiConfig.model}, endpoint=${apiConfig.endpoint}`);
+
+  if (provider === 'anthropic') {
     return callAnthropic(apiConfig, systemPrompt, userMessage, temperature, maxTokens);
   }
 

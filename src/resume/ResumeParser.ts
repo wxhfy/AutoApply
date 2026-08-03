@@ -58,11 +58,20 @@ export async function parseResume(
   resume: ExtractedResume,
   apiConfig: ApiConfig
 ): Promise<ParsedResume> {
+  // Truncate to ~15000 chars to stay within token limits for most models
+  const truncatedText = resume.text.length > 15000
+    ? resume.text.slice(0, 15000) + '\n\n[... 文本过长已截断]'
+    : resume.text;
+
+  console.log(`[ResumeParser] Sending ${truncatedText.length} chars to LLM`);
+
   const content = await chat(apiConfig, {
     systemPrompt: RESUME_PARSE_PROMPT,
-    userMessage: `请从以下简历文本中提取结构化信息：\n\n${resume.text}`,
+    userMessage: `请从以下简历文本中提取结构化信息：\n\n${truncatedText}`,
     maxTokens: 4000,
   });
+
+  console.log(`[ResumeParser] LLM response (${content.length} chars):`, content.slice(0, 200));
 
   // Strip possible markdown fences
   const jsonStr = content
@@ -70,7 +79,13 @@ export async function parseResume(
     .replace(/```\s*/g, '')
     .trim();
 
-  const parsed: ParsedResume = JSON.parse(jsonStr);
+  let parsed: ParsedResume;
+  try {
+    parsed = JSON.parse(jsonStr);
+  } catch (e) {
+    console.error('[ResumeParser] JSON parse failed, raw content:', content);
+    throw new Error(`LLM 返回的内容不是合法 JSON: ${jsonStr.slice(0, 100)}...`);
+  }
 
   // Validate structure (defensive)
   parsed.basic ??= { name: '', phone: '', email: '', location: '' };

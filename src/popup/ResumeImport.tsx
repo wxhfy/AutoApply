@@ -50,6 +50,7 @@ const ResumeImport: React.FC<Props> = ({ apiConfig, onImported }) => {
       setPhase('preview');
       setStatus('');
     } catch (err) {
+      console.error('[ResumeImport] Error:', err);
       setStatus(err instanceof Error ? err.message : '解析失败');
       setPhase('upload');
     }
