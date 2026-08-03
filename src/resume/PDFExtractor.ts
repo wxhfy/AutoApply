@@ -1,17 +1,17 @@
 import * as pdfjsLib from 'pdfjs-dist';
+import { WorkerMessageHandler } from 'pdfjs-dist/build/pdf.worker.mjs';
 import type { ExtractedResume } from './types';
 
-// Chrome Extension MV3 CSP 限制 Worker 加载，禁用 worker 使用主线程解析。
-// 简历 PDF 一般 1-3 页，性能完全没问题。
-pdfjsLib.GlobalWorkerOptions.workerSrc = '';
+// pdfjs v6 在 Chrome Extension MV3 中无法创建 Worker（CSP 限制）。
+// 通过直接 import WorkerMessageHandler 并注入到 globalThis，
+// 让 pdfjs 使用主线程解析，绕过 Worker 限制。
+(globalThis as any).pdfjsWorker = { WorkerMessageHandler };
 
 export async function extractPDFText(file: File): Promise<ExtractedResume> {
   const arrayBuffer = await file.arrayBuffer();
 
   const pdf = await pdfjsLib.getDocument({
     data: arrayBuffer,
-    useWorkerFetch: false,
-    useSystemFonts: true,
   }).promise;
 
   const pages: string[] = [];
@@ -26,7 +26,6 @@ export async function extractPDFText(file: File): Promise<ExtractedResume> {
 
   const text = pages.join('\n').trim();
 
-  // Debug: log extracted text length in devtools console
   console.log(`[PDFExtractor] Extracted ${pdf.numPages} pages, ${text.length} chars`);
   if (text.length < 50) {
     console.warn('[PDFExtractor] Very short text extracted:', text);
