@@ -106,7 +106,7 @@ export function createLLMClient(
         {
           systemPrompt: SYSTEM_PROMPT,
           userMessage: `${buildProfileText(profile)}\n\n---\n\nForm Fields:\n${JSON.stringify(fieldsDesc, null, 2)}`,
-          maxTokens: 4000,
+          maxTokens: 8192,
         },
       );
 
