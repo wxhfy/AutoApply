@@ -1,5 +1,6 @@
-import type { ApiConfig, UserProfile } from '../types';
+import type { ApiConfig } from '../types';
 import type { ParsedResume, ExtractedResume } from './types';
+import { chat } from '../llm/chat';
 
 const RESUME_PARSE_PROMPT = `你是一个简历信息抽取系统。从简历文本中提取结构化个人资料。
 
@@ -57,39 +58,11 @@ export async function parseResume(
   resume: ExtractedResume,
   apiConfig: ApiConfig
 ): Promise<ParsedResume> {
-  const baseUrl = apiConfig.endpoint.replace(/\/+$/, '');
-
-  const response = await fetch(`${baseUrl}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiConfig.apiKey}`,
-    },
-    body: JSON.stringify({
-      model: apiConfig.model,
-      messages: [
-        { role: 'system', content: RESUME_PARSE_PROMPT },
-        {
-          role: 'user',
-          content: `请从以下简历文本中提取结构化信息：\n\n${resume.text}`,
-        },
-      ],
-      temperature: 0.1,
-      max_tokens: 4000,
-    }),
+  const content = await chat(apiConfig, {
+    systemPrompt: RESUME_PARSE_PROMPT,
+    userMessage: `请从以下简历文本中提取结构化信息：\n\n${resume.text}`,
+    maxTokens: 4000,
   });
-
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`LLM API error (${response.status}): ${errText}`);
-  }
-
-  const data = await response.json();
-  const content: string | undefined = data.choices?.[0]?.message?.content;
-
-  if (!content) {
-    throw new Error('LLM 返回空内容');
-  }
 
   // Strip possible markdown fences
   const jsonStr = content

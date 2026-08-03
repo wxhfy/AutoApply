@@ -1,5 +1,6 @@
-import type { LLMClient, DOMField, UserProfile, FillProposal, FillAction } from '../types';
+import type { LLMClient, DOMField, UserProfile, FillProposal } from '../types';
 import { classifyAction } from '../types';
+import { chat } from './chat';
 
 const SYSTEM_PROMPT = `You are a precise form-filling assistant. Your task is to map each form field to a semantic field type and propose a fill value from the user's profile.
 
@@ -84,8 +85,6 @@ export function createLLMClient(
   apiKey: string,
   model: string
 ): LLMClient {
-  const baseUrl = endpoint.replace(/\/+$/, '');
-
   return {
     async matchFields(fields: DOMField[], profile: UserProfile): Promise<FillProposal[]> {
       const fieldsDesc = fields.map(f => {
@@ -102,37 +101,14 @@ export function createLLMClient(
         return desc;
       });
 
-      const response = await fetch(`${baseUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
+      const content = await chat(
+        { endpoint, apiKey, model },
+        {
+          systemPrompt: SYSTEM_PROMPT,
+          userMessage: `${buildProfileText(profile)}\n\n---\n\nForm Fields:\n${JSON.stringify(fieldsDesc, null, 2)}`,
+          maxTokens: 4000,
         },
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: 'system', content: SYSTEM_PROMPT },
-            {
-              role: 'user',
-              content: `${buildProfileText(profile)}\n\n---\n\nForm Fields:\n${JSON.stringify(fieldsDesc, null, 2)}`,
-            },
-          ],
-          temperature: 0.1,
-          max_tokens: 4000,
-        }),
-      });
-
-      if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(`LLM API error (${response.status}): ${errText}`);
-      }
-
-      const data = await response.json();
-      const content: string | undefined = data.choices?.[0]?.message?.content;
-
-      if (!content) {
-        throw new Error('Empty response from LLM');
-      }
+      );
 
       // Extract JSON from possible markdown fences
       const jsonStr = content
@@ -149,9 +125,6 @@ export function createLLMClient(
       // Enforce action classification client-side — do not trust LLM action
       return raw.map(r => {
         const confidence = clamp(Number(r.confidence) || 0, 0, 1);
-        const action = classifyAction(confidence);
-        const match = String(r.fieldId || '');
-
         return {
           fieldId: r.fieldId,
           originalLabel: fields.find(f => f.id === r.fieldId)?.label || '',
@@ -159,7 +132,7 @@ export function createLLMClient(
           value: r.value ?? null,
           confidence,
           reason: String(r.reason || ''),
-          action: action,
+          action: classifyAction(confidence),
         };
       });
     },

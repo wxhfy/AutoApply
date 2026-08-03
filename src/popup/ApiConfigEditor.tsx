@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import type { ApiConfig } from '../types';
+import { chat } from '../llm/chat';
 
 // ─── Provider Presets ───
 
@@ -118,43 +119,20 @@ const ApiConfigEditor: React.FC<Props> = ({ config, onSave }) => {
     setTest({ type: 'testing' });
 
     try {
-      const baseUrl = form.endpoint.replace(/\/+$/, '');
-      const response = await fetch(`${baseUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${form.apiKey}`,
-        },
-        body: JSON.stringify({
-          model: form.model,
-          messages: [{ role: 'user', content: 'hi' }],
-          max_tokens: 1,
-        }),
+      const content = await chat(form, {
+        systemPrompt: 'Reply with exactly "OK" and nothing else.',
+        userMessage: 'hi',
+        temperature: 0,
+        maxTokens: 5,
       });
 
-      if (!response.ok) {
-        const errText = await response.text().catch(() => '');
-        let detail = `HTTP ${response.status}`;
-        if (errText) {
-          // Try to extract a useful error message
-          try {
-            const errJson = JSON.parse(errText);
-            detail = errJson.error?.message || errJson.message || detail;
-          } catch {
-            detail = errText.slice(0, 100);
-          }
-        }
-        setTest({ type: 'error', message: `连接失败: ${detail}` });
-        return;
+      if (content.trim()) {
+        setTest({ type: 'success', model: form.model });
+      } else {
+        setTest({ type: 'error', message: 'API 返回空内容' });
       }
-
-      const data = await response.json();
-      const returnedModel = data.model || form.model;
-      setTest({ type: 'success', model: returnedModel });
     } catch (err) {
-      const msg = err instanceof TypeError
-        ? '网络不通，请检查 Endpoint 地址是否正确'
-        : err instanceof Error ? err.message : '未知错误';
+      const msg = err instanceof Error ? err.message : '未知错误';
       setTest({ type: 'error', message: msg });
     }
   }, [form.endpoint, form.apiKey, form.model]);
