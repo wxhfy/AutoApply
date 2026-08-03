@@ -511,6 +511,20 @@ body {
   color: #991b1b;
 }
 
+.switch-preset-btn {
+  margin-top: 4px;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 11px;
+  color: #2563eb;
+  cursor: pointer;
+}
+
+.switch-preset-btn:hover {
+  text-decoration: underline;
+}
+
 /* ─── History ─── */
 
 .history-list {

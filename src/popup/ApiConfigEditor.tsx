@@ -68,18 +68,25 @@ const ApiConfigEditor: React.FC<Props> = ({ config, onSave }) => {
   const [saving, setSaving] = useState(false);
   const [test, setTest] = useState<TestState>({ type: 'idle' });
   const [provider, setProvider] = useState<string>('OpenAI');
+  const [useCustomModel, setUseCustomModel] = useState(false);
 
   useEffect(() => {
     if (config) {
       setForm(config);
-      // Try to detect which provider matches the saved endpoint
       const matched = PROVIDERS.find(p => p.endpoint === config.endpoint);
-      if (matched) setProvider(matched.name);
+      if (matched) {
+        setProvider(matched.name);
+        setUseCustomModel(!matched.models.includes(config.model));
+      } else {
+        setProvider('自定义');
+        setUseCustomModel(true);
+      }
     }
   }, [config]);
 
   const handleProviderChange = (name: string) => {
     setProvider(name);
+    setUseCustomModel(false);
     const p = PROVIDERS.find(p => p.name === name);
     if (p && p.name !== '自定义') {
       setForm(prev => ({
@@ -87,6 +94,8 @@ const ApiConfigEditor: React.FC<Props> = ({ config, onSave }) => {
         endpoint: p.endpoint,
         model: p.model,
       }));
+    } else {
+      setUseCustomModel(true);
     }
   };
 
@@ -182,31 +191,47 @@ const ApiConfigEditor: React.FC<Props> = ({ config, onSave }) => {
         />
       </div>
 
-      {/* Model: dropdown if preset, otherwise free input */}
+      {/* Model */}
       <div className="field-group">
         <label htmlFor="api-model">Model</label>
-        {models.length > 0 ? (
+        {models.length > 0 && !useCustomModel ? (
           <select
             id="api-model"
-            value={form.model}
-            onChange={e => handleChange('model', e.target.value)}
+            value={models.includes(form.model) ? form.model : '__custom__'}
+            onChange={e => {
+              if (e.target.value === '__custom__') {
+                setUseCustomModel(true);
+                handleChange('model', '');
+              } else {
+                handleChange('model', e.target.value);
+              }
+            }}
             className="model-select"
           >
             {models.map(m => (
               <option key={m} value={m}>{m}</option>
             ))}
-            <option value="">自定义...</option>
+            <option value="__custom__">自定义...</option>
           </select>
-        ) : null}
-        {(models.length === 0 || form.model === '' || !models.includes(form.model)) && (
+        ) : (
           <input
             id="api-model-custom"
             type="text"
             value={form.model}
             onChange={e => handleChange('model', e.target.value)}
             placeholder="输入模型名称"
-            style={{ marginTop: models.length > 0 ? 6 : 0 }}
           />
+        )}
+        {useCustomModel && models.length > 0 && (
+          <button
+            className="switch-preset-btn"
+            onClick={() => {
+              setUseCustomModel(false);
+              handleChange('model', models[0]);
+            }}
+          >
+            ← 选择预设模型
+          </button>
         )}
       </div>
 
