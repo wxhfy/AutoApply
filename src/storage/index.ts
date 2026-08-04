@@ -59,43 +59,104 @@ export async function addImportHistory(record: ResumeImportRecord): Promise<void
   await chrome.storage.local.set({ [IMPORT_HISTORY_KEY]: history });
 }
 
-// ─── Migration (old flat Profile → new UserProfile) ───
-
-interface OldProfile {
-  name: string;
-  school: string;
-  major: string;
-  degree: string;
-  phone: string;
-  email: string;
-  projects: string;
-}
-
 function migrateProfile(raw: unknown): UserProfile {
-  // Already migrated — has "basic" field
-  if (typeof raw === 'object' && raw !== null && 'basic' in raw) {
-    return raw as UserProfile;
+  if (typeof raw !== 'object' || raw === null) {
+    return { ...EMPTY_PROFILE };
   }
 
-  // Old flat format
-  const old = raw as OldProfile;
+  // Old flat format (very old version)
+  if (!('basic' in raw)) {
+    const old = raw as { name?: string; school?: string; major?: string; degree?: string; phone?: string; email?: string; projects?: string };
+    return {
+      basic: {
+        name: old.name || '',
+        phone: old.phone || '',
+        email: old.email || '',
+        gender: '',
+        birthDate: '',
+        ethnicity: '',
+        politicalStatus: '',
+        nativePlace: '',
+      },
+      links: { github: '', linkedin: '', website: '' },
+      education: old.school ? [{ school: old.school, college: '', major: old.major || '', degree: old.degree || '', gpa: '', courses: '', startDate: '', endDate: '' }] : [],
+      experience: [],
+      internships: [],
+      projects: old.projects ? [{ name: '', startDate: '', endDate: '', description: old.projects }] : [],
+      awards: [],
+      skills: [],
+      selfIntroduction: '',
+    };
+  }
+
+  // Has "basic" but may be missing new fields — fill in defaults
+  const p = raw as Record<string, any>;
   return {
     basic: {
-      name: old.name || '',
-      phone: old.phone || '',
-      email: old.email || '',
-      location: '',
+      name: p.basic?.name || '',
+      phone: p.basic?.phone || '',
+      email: p.basic?.email || '',
+      gender: p.basic?.gender || '',
+      birthDate: p.basic?.birthDate || '',
+      ethnicity: p.basic?.ethnicity || '',
+      politicalStatus: p.basic?.politicalStatus || '',
+      nativePlace: p.basic?.nativePlace || p.basic?.location || '',
     },
-    education: {
-      school: old.school || '',
-      major: old.major || '',
-      degree: old.degree || '',
-      graduation: '',
+    links: {
+      github: p.links?.github || '',
+      linkedin: p.links?.linkedin || '',
+      website: p.links?.website || '',
     },
-    experience: old.projects ? [{ company: '', role: '', description: old.projects }] : [],
-    projects: [],
-    skills: [],
-    answers: {},
+    education: Array.isArray(p.education)
+      ? p.education.map((e: any) => ({
+          school: e.school || '',
+          college: e.college || '',
+          major: e.major || '',
+          degree: e.degree || '',
+          gpa: e.gpa || '',
+          courses: e.courses || '',
+          startDate: e.startDate || '',
+          endDate: e.endDate || e.graduation || '',
+        }))
+      : p.education?.school
+        ? [{ school: p.education.school, college: '', major: p.education.major || '', degree: p.education.degree || '', gpa: '', courses: '', startDate: '', endDate: p.education.graduation || '' }]
+        : [],
+    experience: Array.isArray(p.experience)
+      ? p.experience.map((e: any) => ({
+          company: e.company || '',
+          role: e.role || '',
+          startDate: e.startDate || '',
+          endDate: e.endDate || '',
+          description: e.description || '',
+        }))
+      : [],
+    internships: Array.isArray(p.internships)
+      ? p.internships.map((e: any) => ({
+          company: e.company || '',
+          role: e.role || '',
+          startDate: e.startDate || '',
+          endDate: e.endDate || '',
+          description: e.description || '',
+        }))
+      : [],
+    projects: Array.isArray(p.projects)
+      ? p.projects.map((proj: any) => ({
+          name: proj.name || '',
+          startDate: proj.startDate || '',
+          endDate: proj.endDate || '',
+          description: proj.description || '',
+        }))
+      : [],
+    awards: Array.isArray(p.awards)
+      ? p.awards.map((a: any) => ({
+          name: a.name || '',
+          date: a.date || '',
+          level: a.level || '',
+          description: a.description || '',
+        }))
+      : [],
+    skills: Array.isArray(p.skills) ? p.skills : [],
+    selfIntroduction: p.selfIntroduction || '',
   };
 }
 

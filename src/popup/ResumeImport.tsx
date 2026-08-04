@@ -30,7 +30,6 @@ const ResumeImport: React.FC<Props> = ({ apiConfig, onImported }) => {
     setFilename(file.name);
 
     try {
-      // Phase 1: Extract PDF text
       setPhase('extracting');
       setStatus('正在提取 PDF 文本...');
       const resume = await extractPDFText(file);
@@ -41,7 +40,6 @@ const ResumeImport: React.FC<Props> = ({ apiConfig, onImported }) => {
         return;
       }
 
-      // Phase 2: LLM parse
       setPhase('parsing');
       setStatus(`提取到 ${resume.pageCount} 页，共 ${resume.text.length} 字符。正在 AI 解析...`);
       const result = await parseResume(resume, apiConfig);
@@ -139,26 +137,63 @@ const ResumeImport: React.FC<Props> = ({ apiConfig, onImported }) => {
             ['姓名', parsed.basic?.name],
             ['手机', parsed.basic?.phone],
             ['邮箱', parsed.basic?.email],
-            ['城市', parsed.basic?.location],
+            ['性别', parsed.basic?.gender],
+            ['出生日期', parsed.basic?.birthDate],
+            ['民族', parsed.basic?.ethnicity],
+            ['政治面貌', parsed.basic?.politicalStatus],
+            ['籍贯', parsed.basic?.nativePlace],
+          ]} />
+
+          {/* Links */}
+          <SectionPreview title="个人链接" items={[
+            ['GitHub', parsed.links?.github],
+            ['LinkedIn', parsed.links?.linkedin],
+            ['个人网站', parsed.links?.website],
           ]} />
 
           {/* Education */}
-          <SectionPreview title="教育背景" items={[
-            ['学校', parsed.education?.school],
-            ['专业', parsed.education?.major],
-            ['学历', parsed.education?.degree],
-            ['毕业时间', parsed.education?.graduation],
-          ]} />
+          {(parsed.education || []).length > 0 && (
+            <div className="profile-section">
+              <h3 className="section-title">教育经历 ({parsed.education.length})</h3>
+              {parsed.education.map((e, i) => (
+                <div key={i} className="list-card">
+                  <div className="list-card-header">
+                    <span>{e.school} — {e.major} — {e.degree}</span>
+                    <span className="date-range">{e.startDate} ~ {e.endDate}</span>
+                  </div>
+                  {e.college && <div className="list-card-desc">学院: {e.college}</div>}
+                  {e.gpa && <div className="list-card-desc">绩点: {e.gpa}</div>}
+                  {e.courses && <div className="list-card-desc">主修课程: {e.courses}</div>}
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Experience */}
           {(parsed.experience || []).length > 0 && (
             <div className="profile-section">
               <h3 className="section-title">工作经历 ({parsed.experience.length})</h3>
-              {(parsed.experience || []).map((e, i) => (
+              {parsed.experience.map((e, i) => (
                 <div key={i} className="list-card">
                   <div className="list-card-header">
                     <span>{e.company} — {e.role}</span>
-                    {e.startDate && <span className="date-range">{e.startDate} ~ {e.endDate}</span>}
+                    <span className="date-range">{e.startDate} ~ {e.endDate}</span>
+                  </div>
+                  <p className="list-card-desc">{e.description}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Internships */}
+          {(parsed.internships || []).length > 0 && (
+            <div className="profile-section">
+              <h3 className="section-title">实习经历 ({parsed.internships.length})</h3>
+              {parsed.internships.map((e, i) => (
+                <div key={i} className="list-card">
+                  <div className="list-card-header">
+                    <span>{e.company} — {e.role}</span>
+                    <span className="date-range">{e.startDate} ~ {e.endDate}</span>
                   </div>
                   <p className="list-card-desc">{e.description}</p>
                 </div>
@@ -170,19 +205,29 @@ const ResumeImport: React.FC<Props> = ({ apiConfig, onImported }) => {
           {(parsed.projects || []).length > 0 && (
             <div className="profile-section">
               <h3 className="section-title">项目经历 ({parsed.projects.length})</h3>
-              {(parsed.projects || []).map((p, i) => (
+              {parsed.projects.map((p, i) => (
                 <div key={i} className="list-card">
                   <div className="list-card-header">
                     <span>📁 {p.name}</span>
+                    <span className="date-range">{p.startDate} ~ {p.endDate}</span>
                   </div>
                   <p className="list-card-desc">{p.description}</p>
-                  {(p.technologies || []).length > 0 && (
-                    <div className="tags">
-                      {(p.technologies || []).map((t, j) => (
-                        <span key={j} className="tag">{t}</span>
-                      ))}
-                    </div>
-                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Awards */}
+          {(parsed.awards || []).length > 0 && (
+            <div className="profile-section">
+              <h3 className="section-title">获奖经历 ({parsed.awards.length})</h3>
+              {parsed.awards.map((a, i) => (
+                <div key={i} className="list-card">
+                  <div className="list-card-header">
+                    <span>🏆 {a.name}{a.level ? ` [${a.level}]` : ''}</span>
+                    {a.date && <span className="date-range">{a.date}</span>}
+                  </div>
+                  {a.description && <p className="list-card-desc">{a.description}</p>}
                 </div>
               ))}
             </div>
@@ -193,10 +238,18 @@ const ResumeImport: React.FC<Props> = ({ apiConfig, onImported }) => {
             <div className="profile-section">
               <h3 className="section-title">技能</h3>
               <div className="tags">
-                {(parsed.skills || []).map((s, i) => (
+                {parsed.skills.map((s, i) => (
                   <span key={i} className="tag">{s}</span>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* Self Introduction */}
+          {parsed.selfIntroduction && (
+            <div className="profile-section">
+              <h3 className="section-title">自我评价</h3>
+              <p className="list-card-desc">{parsed.selfIntroduction}</p>
             </div>
           )}
         </div>

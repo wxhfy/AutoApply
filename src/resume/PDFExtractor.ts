@@ -1,18 +1,41 @@
-import * as pdfjsLib from 'pdfjs-dist';
-import { WorkerMessageHandler } from 'pdfjs-dist/build/pdf.worker.mjs';
 import type { ExtractedResume } from './types';
 
-// pdfjs v6 在 Chrome Extension MV3 中无法创建 Worker（CSP 限制）。
-// 通过直接 import WorkerMessageHandler 并注入到 globalThis，
-// 让 pdfjs 使用主线程解析，绕过 Worker 限制。
-(globalThis as any).pdfjsWorker = { WorkerMessageHandler };
-
+// Lazy import pdfjs to avoid blocking popup render if module init fails
 export async function extractPDFText(file: File): Promise<ExtractedResume> {
+  const pdfjsLib = await import('pdfjs-dist');
+
+  // For Chrome Extension MV3: use the bundled worker via inline workerSrc
+  // Setting to empty string + using the legacy build avoids the Worker CSP issue
+  if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+    // Point to the worker file bundled alongside our extension
+    // The worker will be fetched as a same-origin module
+    const workerUrl = new URL(
+      'pdfjs-dist/build/pdf.worker.mjs',
+      import.meta.url
+    ).href;
+    pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
+  }
+
   const arrayBuffer = await file.arrayBuffer();
 
-  const pdf = await pdfjsLib.getDocument({
-    data: arrayBuffer,
-  }).promise;
+  let pdf;
+  try {
+    pdf = await pdfjsLib.getDocument({
+      data: arrayBuffer,
+      useWorkerFetch: false,
+      isEvalSupported: false,
+      useSystemFonts: true,
+    }).promise;
+  } catch (err) {
+    // If worker fails (CSP), retry with worker disabled
+    console.warn('[PDFExtractor] Worker failed, retrying without worker:', err);
+    pdfjsLib.GlobalWorkerOptions.workerSrc = '';
+    pdf = await pdfjsLib.getDocument({
+      data: arrayBuffer,
+      isEvalSupported: false,
+      useSystemFonts: true,
+    }).promise;
+  }
 
   const pages: string[] = [];
   for (let i = 1; i <= pdf.numPages; i++) {

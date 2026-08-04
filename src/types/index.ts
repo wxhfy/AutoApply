@@ -5,17 +5,35 @@ export enum ResumeFieldType {
   PHONE = 'PHONE',
   EMAIL = 'EMAIL',
   LOCATION = 'LOCATION',
+  GENDER = 'GENDER',
+  BIRTH_DATE = 'BIRTH_DATE',
+  ID_NUMBER = 'ID_NUMBER',
   SCHOOL = 'SCHOOL',
+  COLLEGE = 'COLLEGE',
   MAJOR = 'MAJOR',
   DEGREE = 'DEGREE',
+  GPA = 'GPA',
+  COURSES = 'COURSES',
   GRADUATION_DATE = 'GRADUATION_DATE',
+  EDUCATION_START_DATE = 'EDUCATION_START_DATE',
   WORK_EXPERIENCE = 'WORK_EXPERIENCE',
   INTERNSHIP_EXPERIENCE = 'INTERNSHIP_EXPERIENCE',
   PROJECT_EXPERIENCE = 'PROJECT_EXPERIENCE',
+  AWARD = 'AWARD',
   SKILLS = 'SKILLS',
   SELF_INTRODUCTION = 'SELF_INTRODUCTION',
   CAREER_GOAL = 'CAREER_GOAL',
   SALARY_EXPECTATION = 'SALARY_EXPECTATION',
+  LINKEDIN = 'LINKEDIN',
+  GITHUB = 'GITHUB',
+  PERSONAL_WEBSITE = 'PERSONAL_WEBSITE',
+  PORTFOLIO = 'PORTFOLIO',
+  NATIONALITY = 'NATIONALITY',
+  ETHNICITY = 'ETHNICITY',
+  POLITICAL_STATUS = 'POLITICAL_STATUS',
+  MARITAL_STATUS = 'MARITAL_STATUS',
+  EMERGENCY_CONTACT = 'EMERGENCY_CONTACT',
+  EMERGENCY_PHONE = 'EMERGENCY_PHONE',
   OTHER = 'OTHER',
 }
 
@@ -25,47 +43,82 @@ export interface BasicInfo {
   name: string;
   phone: string;
   email: string;
-  location: string;
+  gender: string;
+  birthDate: string;
+  ethnicity: string;
+  politicalStatus: string;
+  nativePlace: string;
+}
+
+export interface Links {
+  github: string;
+  linkedin: string;
+  website: string;
 }
 
 export interface Education {
   school: string;
+  college: string;
   major: string;
   degree: string;
-  graduation: string;
+  gpa: string;
+  courses: string;
+  startDate: string;
+  endDate: string;
 }
 
 export interface Experience {
   company: string;
   role: string;
+  startDate: string;
+  endDate: string;
   description: string;
-  startDate?: string;
-  endDate?: string;
+}
+
+export interface Internship {
+  company: string;
+  role: string;
+  startDate: string;
+  endDate: string;
+  description: string;
 }
 
 export interface Project {
   name: string;
+  startDate: string;
+  endDate: string;
   description: string;
-  technologies: string;
-  achievement: string;
+}
+
+export interface Award {
+  name: string;
+  date: string;
+  level: string;
+  description: string;
 }
 
 export interface UserProfile {
   basic: BasicInfo;
-  education: Education;
+  links: Links;
+  education: Education[];
   experience: Experience[];
+  internships: Internship[];
   projects: Project[];
+  awards: Award[];
   skills: string[];
-  answers: Record<string, string>;
+  selfIntroduction: string;
 }
 
 export const EMPTY_PROFILE: UserProfile = {
-  basic: { name: '', phone: '', email: '', location: '' },
-  education: { school: '', major: '', degree: '', graduation: '' },
+  basic: { name: '', phone: '', email: '', gender: '', birthDate: '', ethnicity: '', politicalStatus: '', nativePlace: '' },
+  links: { github: '', linkedin: '', website: '' },
+  education: [],
   experience: [],
+  internships: [],
   projects: [],
+  awards: [],
   skills: [],
-  answers: {},
+  selfIntroduction: '',
 };
 
 // ─── DOM Analysis ───
@@ -98,8 +151,8 @@ export interface FillProposal {
 
 /** Derive action from confidence threshold */
 export function classifyAction(confidence: number): FillAction {
-  if (confidence >= 0.9) return 'auto_fill';
-  if (confidence >= 0.6) return 'confirm';
+  if (confidence >= 0.7) return 'auto_fill';
+  if (confidence >= 0.5) return 'confirm';
   return 'skip';
 }
 
@@ -133,7 +186,11 @@ export interface ApiConfig {
 // ─── LLM Client Interface ───
 
 export interface LLMClient {
-  matchFields(fields: DOMField[], profile: UserProfile): Promise<FillProposal[]>;
+  matchFields(
+    fields: DOMField[],
+    profile: UserProfile,
+    onRetry?: (attempt: number, max: number, reason: string) => void,
+  ): Promise<FillProposal[]>;
 }
 
 // ─── Content Script Messages ───

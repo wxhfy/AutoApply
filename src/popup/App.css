@@ -118,11 +118,125 @@ body {
 .analyzing-screen {
   display: flex;
   flex-direction: column;
+  gap: 12px;
+  padding: 20px 16px;
+  color: #6b7280;
+}
+
+.steps-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.steps-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.steps-elapsed {
+  font-size: 12px;
+  color: #9ca3af;
+  font-variant-numeric: tabular-nums;
+}
+
+.step-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.step-row {
+  display: flex;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.step-row:last-child { border-bottom: none; }
+
+.step-icon {
+  flex-shrink: 0;
+  width: 16px;
+  height: 18px;
+  display: flex;
   align-items: center;
   justify-content: center;
-  gap: 16px;
-  padding: 60px 20px;
+  font-size: 12px;
+  color: #d1d5db;
+}
+
+.step-done .step-icon    { color: #16a34a; }
+.step-skipped .step-icon { color: #9ca3af; }
+
+.step-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.step-label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  color: #9ca3af;
+}
+
+.step-active .step-label { color: #111827; font-weight: 600; }
+.step-done .step-label   { color: #374151; }
+
+.step-count {
+  flex-shrink: 0;
+  font-size: 11px;
   color: #6b7280;
+  font-variant-numeric: tabular-nums;
+}
+
+.step-detail {
+  font-size: 11px;
+  color: #9ca3af;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.step-spinner {
+  width: 11px;
+  height: 11px;
+  border: 2px solid #dbeafe;
+  border-top-color: #2563eb;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+.steps-hint {
+  font-size: 11px;
+  color: #9ca3af;
+  text-align: center;
+  margin-top: 4px;
+}
+
+.field-hint {
+  font-size: 11px;
+  color: #6b7280;
+  margin-top: 6px;
+  line-height: 1.5;
+}
+
+.field-hint-warn {
+  color: #b45309;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 4px;
+  padding: 6px 8px;
 }
 
 .spinner {
@@ -135,6 +249,26 @@ body {
 }
 
 @keyframes spin { to { transform: rotate(360deg); } }
+
+.analyzing-status {
+  font-size: 13px;
+  text-align: center;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 4px;
+  background: #e5e7eb;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #2563eb, #3b82f6);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
 
 /* ─── Fill Preview ─── */
 

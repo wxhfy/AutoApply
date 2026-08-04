@@ -9,27 +9,53 @@ export interface ParsedResume {
     name: string;
     phone: string;
     email: string;
-    location: string;
+    gender: string;
+    birthDate: string;
+    ethnicity: string;
+    politicalStatus: string;
+    nativePlace: string;
   };
-  education: {
+  links: {
+    github: string;
+    linkedin: string;
+    website: string;
+  };
+  education: Array<{
     school: string;
+    college: string;
     major: string;
     degree: string;
-    graduation: string;
-  };
-  experience: Array<{
-    company: string;
-    role: string;
-    description: string;
+    gpa: string;
+    courses: string;
     startDate: string;
     endDate: string;
   }>;
+  experience: Array<{
+    company: string;
+    role: string;
+    startDate: string;
+    endDate: string;
+    description: string;
+  }>;
+  internships: Array<{
+    company: string;
+    role: string;
+    startDate: string;
+    endDate: string;
+    description: string;
+  }>;
   projects: Array<{
     name: string;
+    startDate: string;
+    endDate: string;
     description: string;
-    technologies: string[];
-    achievements: string[];
+  }>;
+  awards: Array<{
+    name: string;
+    date: string;
+    level: string;
+    description: string;
   }>;
   skills: string[];
-  answers: Record<string, string>;
+  selfIntroduction: string;
 }

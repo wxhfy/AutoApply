@@ -46,6 +46,9 @@ const PROVIDERS: ProviderPreset[] = [
   },
 ];
 
+// 推理类模型：字段匹配场景不需要思维链，耗时会显著变长
+const REASONING_MODELS = ['reasoner', 'o1', 'o3', 'o4-mini', 'thinking'];
+
 // ─── Component ───
 
 interface Props {
@@ -232,6 +235,11 @@ const ApiConfigEditor: React.FC<Props> = ({ config, onSave }) => {
           >
             ← 选择预设模型
           </button>
+        )}
+        {REASONING_MODELS.some(m => form.model.includes(m)) && (
+          <p className="field-hint field-hint-warn">
+            ⚠️ 推理模型会生成大量思维链，字段匹配场景用不上，耗时显著更长。建议改用普通对话模型。
+          </p>
         )}
       </div>
 
