@@ -14,12 +14,14 @@ function matchField(field: DOMField, profile: UserProfile): FillProposal {
     return review(field, '省市区层级控件暂需人工确认');
   }
 
-  const label = normalizeLabel([field.label, field.name, field.placeholder, field.ariaLabel].filter(Boolean).join(' '));
-  if (HUMAN_GATE_PATTERN.test(label)) {
+  const labels = [field.label, field.name, field.placeholder, field.ariaLabel]
+    .filter(Boolean)
+    .map(normalizeLabel);
+  if (labels.some(label => HUMAN_GATE_PATTERN.test(label))) {
     return review(field, '需用户确认的敏感求职项');
   }
 
-  const matched = findRule(label);
+  const matched = findRule(labels);
   if (!matched) return review(field, '没有确定性规则匹配');
 
   const rawValue = resolveProfileValue(profile, matched.rule.profilePath);
@@ -42,19 +44,19 @@ function matchField(field: DOMField, profile: UserProfile): FillProposal {
   };
 }
 
-function findRule(label: string): { rule: FieldRule; confidence: number; reason: string } | null {
+function findRule(labels: string[]): { rule: FieldRule; confidence: number; reason: string } | null {
   for (const rule of FIELD_RULES) {
-    if (rule.exact.some(candidate => normalizeLabel(candidate) === label)) {
+    if (labels.some(label => rule.exact.some(candidate => normalizeLabel(candidate) === label))) {
       return { rule, confidence: 1, reason: 'Exact 规则' };
     }
   }
   for (const rule of FIELD_RULES) {
-    if (rule.aliases.some(candidate => normalizeLabel(candidate) === label)) {
+    if (labels.some(label => rule.aliases.some(candidate => normalizeLabel(candidate) === label))) {
       return { rule, confidence: 0.98, reason: 'Alias 规则' };
     }
   }
   for (const rule of FIELD_RULES) {
-    if (rule.patterns?.some(pattern => pattern.test(label))) {
+    if (labels.some(label => rule.patterns?.some(pattern => pattern.test(label)))) {
       return { rule, confidence: 0.9, reason: 'Regex 规则' };
     }
   }

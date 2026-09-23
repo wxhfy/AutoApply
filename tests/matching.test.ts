@@ -59,6 +59,20 @@ test('matches exact aliases without an LLM and preserves existing page values', 
   );
 });
 
+test('matches an English form when label and name are separate signals', () => {
+  const proposals = matchFields([
+    { id: 'custname', tag: 'input', type: 'text', label: 'Customer name', placeholder: '', name: 'custname', ariaLabel: '', nearbyText: '', currentValue: '', required: true, componentType: 'text', locator: '[data-jf-id="custname"]' },
+    { id: 'custtel', tag: 'input', type: 'tel', label: 'Telephone', placeholder: '', name: 'custtel', ariaLabel: '', nearbyText: '', currentValue: '', required: true, componentType: 'text', locator: '[data-jf-id="custtel"]' },
+    { id: 'custemail', tag: 'input', type: 'email', label: 'E-mail address', placeholder: '', name: 'custemail', ariaLabel: '', nearbyText: '', currentValue: '', required: true, componentType: 'text', locator: '[data-jf-id="custemail"]' },
+  ], profile);
+
+  assert.deepEqual(proposals.map(({ fieldType, value, action }) => ({ fieldType, value, action })), [
+    { fieldType: 'NAME', value: '张三', action: 'auto_fill' },
+    { fieldType: 'PHONE', value: '13800138000', action: 'auto_fill' },
+    { fieldType: 'EMAIL', value: 'zhangsan@example.com', action: 'auto_fill' },
+  ]);
+});
+
 test('matches a birth-date field from the existing profile', () => {
   const [proposal] = matchFields([
     { id: 'birth-date', tag: 'input', type: 'date', label: '出生日期', placeholder: '', name: '', ariaLabel: '', nearbyText: '', currentValue: '', required: false, componentType: 'date', locator: '[data-jf-id="birth-date"]' },

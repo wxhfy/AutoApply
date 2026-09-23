@@ -10,9 +10,9 @@ export interface FieldRule {
 }
 
 export const FIELD_RULES: FieldRule[] = [
-  { fieldType: 'NAME', profilePath: 'basic.name', exact: ['姓名'], aliases: ['真实姓名', '中文名', '全名', 'name', 'fullname'] },
-  { fieldType: 'PHONE', profilePath: 'basic.phone', exact: ['手机号'], aliases: ['手机', '手机号码', '联系电话', '移动电话', 'phone', 'mobile', 'tel'] },
-  { fieldType: 'EMAIL', profilePath: 'basic.email', exact: ['邮箱'], aliases: ['电子邮箱', '电子邮件', 'email', 'emailaddress'] },
+  { fieldType: 'NAME', profilePath: 'basic.name', exact: ['姓名'], aliases: ['真实姓名', '中文名', '全名', 'name', 'fullname', 'customername', 'applicantname', 'custname'] },
+  { fieldType: 'PHONE', profilePath: 'basic.phone', exact: ['手机号'], aliases: ['手机', '手机号码', '联系电话', '移动电话', 'phone', 'mobile', 'tel', 'telephone', 'customertelephone', 'custtel'] },
+  { fieldType: 'EMAIL', profilePath: 'basic.email', exact: ['邮箱'], aliases: ['电子邮箱', '电子邮件', 'email', 'emailaddress', 'customeremail', 'custemail'] },
   { fieldType: 'GENDER', profilePath: 'basic.gender', exact: ['性别'], aliases: ['男女', 'gender', 'sex'], valueKind: 'gender' },
   { fieldType: 'BIRTH_DATE', profilePath: 'basic.birthDate', exact: ['出生日期'], aliases: ['生日', '出生年月', 'birthdate', 'dateofbirth'], valueKind: 'date' },
   { fieldType: 'LOCATION', profilePath: 'basic.currentCity', exact: ['现居城市'], aliases: ['居住城市', '当前城市', '所在城市', 'currentcity'], valueKind: 'text' },
