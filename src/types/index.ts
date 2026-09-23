@@ -48,6 +48,7 @@ export interface BasicInfo {
   ethnicity: string;
   politicalStatus: string;
   nativePlace: string;
+  currentCity: string;
 }
 
 export interface Links {
@@ -65,6 +66,8 @@ export interface Education {
   courses: string;
   startDate: string;
   endDate: string;
+  cet4: string;
+  cet6: string;
 }
 
 export interface Experience {
@@ -110,7 +113,7 @@ export interface UserProfile {
 }
 
 export const EMPTY_PROFILE: UserProfile = {
-  basic: { name: '', phone: '', email: '', gender: '', birthDate: '', ethnicity: '', politicalStatus: '', nativePlace: '' },
+  basic: { name: '', phone: '', email: '', gender: '', birthDate: '', ethnicity: '', politicalStatus: '', nativePlace: '', currentCity: '' },
   links: { github: '', linkedin: '', website: '' },
   education: [],
   experience: [],
@@ -132,8 +135,25 @@ export interface DOMField {
   name: string;
   ariaLabel: string;
   nearbyText: string;
+  currentValue: string;
+  required: boolean;
+  componentType: ComponentType;
+  locator: string;
   options?: string[];
 }
+
+export type ComponentType =
+  | 'text'
+  | 'textarea'
+  | 'contenteditable'
+  | 'native-select'
+  | 'radio'
+  | 'checkbox'
+  | 'autocomplete'
+  | 'date'
+  | 'custom-select'
+  | 'cascader'
+  | 'unknown';
 
 // ─── Fill Proposal ───
 
@@ -147,6 +167,26 @@ export interface FillProposal {
   confidence: number;
   reason: string;
   action: FillAction;
+}
+
+export type VerifyStatus = 'VERIFIED' | 'REVIEW' | 'ERROR';
+
+export interface VerifyResult {
+  fieldId: string;
+  status: VerifyStatus;
+  expectedValue: string | null;
+  actualValue: string | null;
+  normalizedExpected: string | null;
+  normalizedActual: string | null;
+  reason?: string;
+}
+
+export interface AutofillSummary {
+  totalFields: number;
+  verifiedCount: number;
+  reviewCount: number;
+  errorCount: number;
+  results: VerifyResult[];
 }
 
 /** Derive action from confidence threshold */

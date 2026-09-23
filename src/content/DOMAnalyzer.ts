@@ -7,6 +7,9 @@ const FIELD_SELECTOR = [
   // Custom dropdown triggers commonly used by Ant Design / Element Plus / MUI
   '[role="combobox"]',
   '[role="listbox"]',
+  '[data-date-picker]',
+  '[class*="date-picker"]',
+  '[class*="datepicker"]',
   '[contenteditable="true"]',
 ].join(', ');
 
@@ -59,10 +62,14 @@ export function analyzePage(): DOMField[] {
       tag: element.tagName.toLowerCase(),
       type: (inputEl as HTMLInputElement).type || element.getAttribute('role') || 'text',
       label: findLabel(element),
-      placeholder: inputEl.placeholder || element.getAttribute('placeholder') || '',
+      placeholder: getPlaceholder(element),
       name: inputEl.name || element.getAttribute('data-name') || element.getAttribute('data-field') || '',
       ariaLabel: element.getAttribute('aria-label') || '',
       nearbyText: findNearbyText(element),
+      currentValue: getCurrentValue(element),
+      required: element.hasAttribute('required') || element.getAttribute('aria-required') === 'true',
+      componentType: getComponentType(element),
+      locator: `[data-jf-id="${fieldId}"]`,
     };
 
     // Native select or custom select with options
@@ -77,6 +84,42 @@ export function analyzePage(): DOMField[] {
   });
 
   return fields;
+}
+
+function getPlaceholder(element: HTMLElement): string {
+  if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
+    return element.placeholder || '';
+  }
+  const input = element.querySelector<HTMLInputElement>('input');
+  if (input) return input.placeholder || '';
+  return element.getAttribute('placeholder') || '';
+}
+
+function getCurrentValue(element: HTMLElement): string {
+  if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement) {
+    return element.value || '';
+  }
+  const input = element.querySelector<HTMLInputElement>('input');
+  if (input) return input.value || '';
+  return element.isContentEditable ? element.textContent?.trim() || '' : '';
+}
+
+function getComponentType(element: HTMLElement): DOMField['componentType'] {
+  if (element instanceof HTMLSelectElement) return 'native-select';
+  if (element instanceof HTMLInputElement) {
+    if (element.type === 'radio') return 'radio';
+    if (element.type === 'checkbox') return 'checkbox';
+    if (element.type === 'date' || element.type === 'month') return 'date';
+    const autocomplete = element.getAttribute('autocomplete') || '';
+    if (element.closest('[data-autofill-autocomplete], [class*="autocomplete"], [class*="Autocomplete"]')) return 'autocomplete';
+    if (autocomplete && !['off', 'on', 'name', 'email', 'tel', 'url', 'username', 'new-password', 'current-password'].includes(autocomplete.toLowerCase())) return 'autocomplete';
+  }
+  if (element instanceof HTMLTextAreaElement) return 'textarea';
+  if (element.isContentEditable) return 'contenteditable';
+  if (element.matches('[data-date-picker], [class*="date-picker"], [class*="datepicker"]')) return 'date';
+  if (element.matches('[class*="cascader"], [class*="Cascader"]')) return 'cascader';
+  if (element.getAttribute('role') === 'combobox') return 'custom-select';
+  return 'text';
 }
 
 function isHidden(el: HTMLElement): boolean {

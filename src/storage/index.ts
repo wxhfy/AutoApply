@@ -77,9 +77,10 @@ function migrateProfile(raw: unknown): UserProfile {
         ethnicity: '',
         politicalStatus: '',
         nativePlace: '',
+        currentCity: '',
       },
       links: { github: '', linkedin: '', website: '' },
-      education: old.school ? [{ school: old.school, college: '', major: old.major || '', degree: old.degree || '', gpa: '', courses: '', startDate: '', endDate: '' }] : [],
+      education: old.school ? [{ school: old.school, college: '', major: old.major || '', degree: old.degree || '', gpa: '', courses: '', startDate: '', endDate: '', cet4: '', cet6: '' }] : [],
       experience: [],
       internships: [],
       projects: old.projects ? [{ name: '', startDate: '', endDate: '', description: old.projects }] : [],
@@ -101,6 +102,7 @@ function migrateProfile(raw: unknown): UserProfile {
       ethnicity: p.basic?.ethnicity || '',
       politicalStatus: p.basic?.politicalStatus || '',
       nativePlace: p.basic?.nativePlace || p.basic?.location || '',
+      currentCity: p.basic?.currentCity || '',
     },
     links: {
       github: p.links?.github || '',
@@ -117,9 +119,11 @@ function migrateProfile(raw: unknown): UserProfile {
           courses: e.courses || '',
           startDate: e.startDate || '',
           endDate: e.endDate || e.graduation || '',
+          cet4: e.cet4 || '',
+          cet6: e.cet6 || '',
         }))
       : p.education?.school
-        ? [{ school: p.education.school, college: '', major: p.education.major || '', degree: p.education.degree || '', gpa: '', courses: '', startDate: '', endDate: p.education.graduation || '' }]
+        ? [{ school: p.education.school, college: '', major: p.education.major || '', degree: p.education.degree || '', gpa: '', courses: '', startDate: '', endDate: p.education.graduation || '', cet4: '', cet6: '' }]
         : [],
     experience: Array.isArray(p.experience)
       ? p.experience.map((e: any) => ({
@@ -159,4 +163,3 @@ function migrateProfile(raw: unknown): UserProfile {
     selfIntroduction: p.selfIntroduction || '',
   };
 }
-

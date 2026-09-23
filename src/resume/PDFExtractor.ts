@@ -23,7 +23,6 @@ export async function extractPDFText(file: File): Promise<ExtractedResume> {
     pdf = await pdfjsLib.getDocument({
       data: arrayBuffer,
       useWorkerFetch: false,
-      isEvalSupported: false,
       useSystemFonts: true,
     }).promise;
   } catch (err) {
@@ -32,7 +31,6 @@ export async function extractPDFText(file: File): Promise<ExtractedResume> {
     pdfjsLib.GlobalWorkerOptions.workerSrc = '';
     pdf = await pdfjsLib.getDocument({
       data: arrayBuffer,
-      isEvalSupported: false,
       useSystemFonts: true,
     }).promise;
   }

@@ -37,7 +37,7 @@ const ProfileEditor: React.FC<Props> = ({ profile, onSave }) => {
   const addEducation = () => {
     setForm(prev => ({
       ...prev,
-      education: [...prev.education, { school: '', college: '', major: '', degree: '', gpa: '', courses: '', startDate: '', endDate: '' }],
+      education: [...prev.education, { school: '', college: '', major: '', degree: '', gpa: '', courses: '', startDate: '', endDate: '', cet4: '', cet6: '' }],
     }));
   };
 
@@ -158,6 +158,7 @@ const ProfileEditor: React.FC<Props> = ({ profile, onSave }) => {
           <Field label="政治面貌" value={form.basic.politicalStatus} onChange={v => updateBasic('politicalStatus', v)} placeholder="共青团员" />
           <Field label="籍贯" value={form.basic.nativePlace} onChange={v => updateBasic('nativePlace', v)} placeholder="广东深圳" />
         </FieldRow>
+        <Field label="现居城市" value={form.basic.currentCity} onChange={v => updateBasic('currentCity', v)} placeholder="北京" />
       </section>
 
       {/* ── Links ── */}
@@ -193,6 +194,10 @@ const ProfileEditor: React.FC<Props> = ({ profile, onSave }) => {
               <Field label="毕业时间" value={e.endDate} onChange={v => updateEducation(i, 'endDate', v)} placeholder="2023.06" />
             </FieldRow>
             <Field label="绩点 / 成绩" value={e.gpa} onChange={v => updateEducation(i, 'gpa', v)} placeholder="3.8/4.0 或 89分" />
+            <FieldRow>
+              <Field label="英语四级" value={e.cet4} onChange={v => updateEducation(i, 'cet4', v)} placeholder="550" />
+              <Field label="英语六级" value={e.cet6} onChange={v => updateEducation(i, 'cet6', v)} placeholder="500" />
+            </FieldRow>
             <div className="field">
               <label>主修课程</label>
               <textarea

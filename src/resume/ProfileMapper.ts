@@ -13,6 +13,7 @@ export function mapToProfile(parsed: ParsedResume): UserProfile {
       ethnicity: parsed.basic?.ethnicity || '',
       politicalStatus: parsed.basic?.politicalStatus || '',
       nativePlace: parsed.basic?.nativePlace || '',
+      currentCity: '',
     },
     links: {
       github: parsed.links?.github || '',
@@ -28,6 +29,8 @@ export function mapToProfile(parsed: ParsedResume): UserProfile {
       courses: e.courses || '',
       startDate: e.startDate || '',
       endDate: e.endDate || '',
+      cet4: '',
+      cet6: '',
     })),
     experience: (parsed.experience || []).map(e => ({
       company: e.company || '',
