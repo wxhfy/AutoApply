@@ -40,6 +40,8 @@ function result(fieldId: string, status: VerifyResult['status'], expectedValue: 
 }
 
 function readValue(field: DOMField, element: HTMLElement): string | null {
+  const selected = element.closest('.ant-select')?.querySelector('.ant-select-selection-item');
+  if (selected) return selected.textContent?.trim() || null;
   if (element instanceof HTMLSelectElement) return element.selectedOptions[0]?.text || null;
   if (element instanceof HTMLInputElement && (field.componentType === 'radio' || field.componentType === 'checkbox')) {
     const group = element.closest<HTMLElement>('[role="radiogroup"], .ant-radio-group, fieldset, .ant-form-item');
@@ -63,6 +65,8 @@ function valueKind(field: DOMField, proposal: FillProposal): ValueKind {
 
 function hasUncommittedAutocompleteId(element: HTMLElement): boolean {
   const container = element.closest('[data-autofill-autocomplete], .autocomplete, [class*="autocomplete"]');
-  const idField = container?.querySelector<HTMLInputElement>('input[type="hidden"][name*="id" i]');
+  const baseId = element.id.split('-fe-')[0];
+  const idField = container?.querySelector<HTMLInputElement>('input[type="hidden"][name*="id" i]')
+    || (baseId !== element.id ? container?.querySelector<HTMLInputElement>(`input[id="${CSS.escape(baseId)}"]`) : null);
   return !!idField && !idField.value;
 }

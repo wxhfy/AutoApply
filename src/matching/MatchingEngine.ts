@@ -88,5 +88,5 @@ function review(field: DOMField, reason: string, fieldType: FillProposal['fieldT
 }
 
 function normalizeLabel(value: string): string {
-  return value.toLowerCase().replace(/[\s:：*（）()\-_]+/g, '');
+  return value.toLowerCase().replace(/（[^）]*）|\([^)]*\)/g, '').replace(/[\s:：*\-_]+/g, '');
 }

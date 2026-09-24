@@ -18,10 +18,16 @@ export async function runAutofill(
   if (!tab?.id) throw new Error('无法访问当前标签页');
   await ensureContentScript(tab.id);
 
-  onProgress?.({ step: 'scan', detail: '正在读取页面元素' });
+  const completed = new Map<string, VerifyResult>();
+  // Selecting education or employment status can reveal dependent fields.
+  // Keep this bounded, and never retry a field already handled in this run.
+  for (let pass = 0; pass < 4; pass++) {
+  onProgress?.({ step: 'scan', detail: pass ? '正在检查新出现的字段' : '正在读取页面元素' });
   const scan = await sendMessage<{ type: 'ANALYZE_RESULT'; fields: DOMField[] } | { type: 'ERROR'; message: string }>(tab.id, { type: 'ANALYZE' });
   if (scan.type === 'ERROR') throw new Error(scan.message);
-  if (!scan.fields.length) throw new Error('当前页面未找到表单字段');
+  if (!scan.fields.length && !completed.size) throw new Error('当前页面未找到表单字段');
+  scan.fields = scan.fields.filter(field => !completed.has(field.id));
+  if (!scan.fields.length) break;
 
   onProgress?.({ step: 'match', detail: `正在匹配 ${scan.fields.length} 个字段` });
   const proposals = matchFields(scan.fields, profile);
@@ -47,7 +53,12 @@ export async function runAutofill(
       : result;
   });
   await sendMessage(tab.id, { type: 'HIGHLIGHT_BATCH', results });
+  results.forEach(result => completed.set(result.fieldId, result));
+  if (!fillableCount) break;
+  await new Promise(resolve => setTimeout(resolve, 250));
+  }
 
+  const results = [...completed.values()];
   const summary: AutofillSummary = {
     totalFields: results.length,
     verifiedCount: results.filter(result => result.status === 'VERIFIED').length,

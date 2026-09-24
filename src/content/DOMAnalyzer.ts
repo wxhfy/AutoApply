@@ -40,18 +40,22 @@ const LABEL_SELECTORS = [
   'label',
 ];
 
+const fieldIds = new WeakMap<HTMLElement, string>();
+let nextFieldId = 0;
+
 export function analyzePage(): DOMField[] {
   const elements = document.querySelectorAll(FIELD_SELECTOR);
   const fields: DOMField[] = [];
   const seen = new Set<HTMLElement>();
   const seenRadioGroups = new Set<string | HTMLElement>();
 
-  elements.forEach((el, index) => {
+  elements.forEach((el) => {
     const element = el as HTMLElement;
 
     // Skip duplicates and very small/hidden elements
     if (seen.has(element)) return;
     if (isHidden(element)) return;
+    if (!element.closest('form, .ant-form-item, .el-form-item') && /请输入职位或企业名称/.test(getPlaceholder(element))) return;
     seen.add(element);
 
     const radioGroup = element instanceof HTMLInputElement && element.type === 'radio'
@@ -63,7 +67,8 @@ export function analyzePage(): DOMField[] {
     if (radioGroupKey && seenRadioGroups.has(radioGroupKey)) return;
     if (radioGroupKey) seenRadioGroups.add(radioGroupKey);
 
-    const fieldId = `jf-${index}`;
+    const fieldId = fieldIds.get(element) || `jf-${nextFieldId++}`;
+    fieldIds.set(element, fieldId);
     element.setAttribute('data-jf-id', fieldId);
 
     const inputEl = element as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
@@ -111,6 +116,15 @@ function getPlaceholder(element: HTMLElement): string {
 }
 
 function getCurrentValue(element: HTMLElement): string {
+  if (element instanceof HTMLInputElement && ['radio', 'checkbox'].includes(element.type)) {
+    const group = getRadioGroup(element);
+    const selected = element.name
+      ? document.querySelector<HTMLInputElement>(`input[name="${CSS.escape(element.name)}"]:checked`)
+      : group?.querySelector<HTMLInputElement>('input:checked');
+    return selected?.closest('label')?.textContent?.trim() || (element.checked ? element.value : '');
+  }
+  const selectedText = element.closest('.ant-select')?.querySelector('.ant-select-selection-item')?.textContent?.trim();
+  if (selectedText) return selectedText;
   if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement) {
     return element.value || '';
   }
@@ -125,7 +139,7 @@ function getComponentType(element: HTMLElement): DOMField['componentType'] {
     if (element.type === 'radio') return 'radio';
     if (element.type === 'checkbox') return 'checkbox';
     if (element.type === 'date' || element.type === 'month') return 'date';
-    if (element.readOnly && element.closest('.ant-picker, [class*="day_info"], [class*="date-picker"], [class*="datepicker"], [class*="DatePicker"]')) return 'date';
+    if (element.closest('.ant-picker, [class*="day_info"], [class*="date-picker"], [class*="datepicker"], [class*="DatePicker"]')) return 'date';
     if (element.closest('.ant-cascader, [class*="cascader"], [class*="Cascader"]')) return 'cascader';
     if (element.closest('[class*="Select-container"], [class*="select-container"], [class*="selectContainer"]')) return 'custom-select';
     if (element.closest('[data-autofill-autocomplete], [class*="autocomplete"], [class*="Autocomplete"]')) return 'autocomplete';
@@ -222,7 +236,7 @@ function findLabel(element: HTMLElement): string {
 /** Walk up the DOM to find a form-item wrapper */
 function findFormItemWrapper(element: HTMLElement): HTMLElement | null {
   let current: HTMLElement | null = element;
-  for (let i = 0; i < 6 && current; i++) {
+  for (let i = 0; i < 20 && current; i++) {
     current = current.parentElement;
     if (!current) break;
     for (const selector of FORM_ITEM_SELECTORS) {

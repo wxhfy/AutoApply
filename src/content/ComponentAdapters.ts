@@ -52,7 +52,15 @@ class DateInputAdapter implements ComponentAdapter {
     if (input) {
       const controlValue = formatDateForControl(value, input.type);
       if (!controlValue) return { success: false, reason: 'Profile 日期格式不被页面日期控件接受' };
-      setNativeValue(input, controlValue);
+      if (input.closest('.ant-picker')) {
+        if (input.readOnly) return fillAntCalendar(input, controlValue);
+        input.click();
+        setNativeValue(input, controlValue, false);
+        await new Promise(resolve => setTimeout(resolve, 100));
+        input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
+        input.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
+        input.blur();
+      } else setNativeValue(input, controlValue);
       return { success: true };
     }
 
@@ -62,6 +70,50 @@ class DateInputAdapter implements ComponentAdapter {
     clickOption(option);
     return { success: true };
   }
+}
+
+async function fillAntCalendar(input: HTMLInputElement, value: string): Promise<AdapterFillResult> {
+  const parts = /^(\d{4})-(\d{2})(?:-(\d{2}))?$/.exec(value);
+  if (!parts) return { success: false, reason: '日期必须为 YYYY-MM 或 YYYY-MM-DD' };
+  const pause = () => new Promise(resolve => setTimeout(resolve, 80));
+  const panel = () => document.querySelector<HTMLElement>('.ant-picker-dropdown:not(.ant-picker-dropdown-hidden)');
+  input.focus();
+  clickOption(input);
+  await pause();
+  if (!panel()) return { success: false, reason: '日期面板未打开' };
+  panel()?.querySelector<HTMLElement>('.ant-picker-year-btn')?.click();
+  await pause();
+  for (let step = 0; step < 30; step++) {
+    const root = panel();
+    if (!root) break;
+    const year = root.querySelector<HTMLElement>(`.ant-picker-cell[title="${parts[1]}"]:not(.ant-picker-cell-disabled)`);
+    if (year) { year.click(); await pause(); break; }
+    const years = Array.from(root.querySelectorAll('.ant-picker-cell[title]')).map(e => Number(e.getAttribute('title'))).filter(Number.isFinite);
+    if (!years.length) break;
+    const direction = Number(parts[1]) < Math.min(...years) ? 'prev' : 'next';
+    const button = root.querySelector<HTMLButtonElement>(`.ant-picker-header-super-${direction}-btn`);
+    if (!button || button.disabled) break;
+    button.click();
+    await pause();
+  }
+  const needsDay = !!panel()?.querySelector('.ant-picker-date-panel');
+  if (needsDay && !parts[3]) return { success: false, reason: '日控件需要明确日期，不能猜测日' };
+  if (needsDay) {
+    panel()?.querySelector<HTMLElement>('.ant-picker-month-btn')?.click();
+    await pause();
+  }
+  const month = panel()?.querySelector<HTMLElement>(`.ant-picker-cell[title="${parts[1]}-${parts[2]}"]:not(.ant-picker-cell-disabled)`);
+  if (!month) return { success: false, reason: '日历中未找到目标年月' };
+  month.click();
+  await pause();
+  if (parts[3]) {
+    const day = panel()?.querySelector<HTMLElement>(`.ant-picker-date-panel .ant-picker-cell[title="${value}"]:not(.ant-picker-cell-disabled)`);
+    if (!day) return { success: false, reason: '日历中未找到目标日期' };
+    day.click();
+    await pause();
+  }
+  input.blur();
+  return { success: input.value === value, reason: input.value === value ? undefined : '日历选择未提交' };
 }
 
 class NativeSelectAdapter implements ComponentAdapter {
@@ -116,7 +168,9 @@ class AutocompleteAdapter implements ComponentAdapter {
       ? element
       : element.querySelector<HTMLInputElement>('input');
     if (!input) return { success: false, reason: '未找到 autocomplete 输入框' };
-    setNativeValue(input, value);
+    const trigger = input.closest('.ant-select')?.querySelector<HTMLElement>('.ant-select-selector');
+    if (trigger) clickOption(trigger);
+    setNativeValue(input, value, false);
     const option = await waitForMatchingOption(value, 1_500);
     if (!option) return { success: false, reason: '候选项未出现或未精确匹配' };
     clickOption(option);
@@ -132,8 +186,17 @@ class AntDesignSelectAdapter implements ComponentAdapter {
   }
 
   async fill(_field: DOMField, element: HTMLElement, value: string): Promise<AdapterFillResult> {
-    element.click();
-    const option = await waitForMatchingOption(value, 1_500, '.ant-select-dropdown:not(.ant-select-dropdown-hidden)');
+    const trigger = element.closest('.ant-select')?.querySelector<HTMLElement>('.ant-select-selector') || element;
+    clickOption(trigger);
+    let option = await waitForMatchingOption(value, 500, '.ant-select-dropdown:not(.ant-select-dropdown-hidden)');
+    // Ant virtual lists only render the current window of options.
+    for (let page = 0; !option && page < 20; page++) {
+      const list = document.querySelector<HTMLElement>('.ant-select-dropdown:not(.ant-select-dropdown-hidden) .rc-virtual-list-holder');
+      if (!list || list.scrollTop + list.clientHeight >= list.scrollHeight) break;
+      list.scrollTop += list.clientHeight;
+      list.dispatchEvent(new Event('scroll', { bubbles: true }));
+      option = await waitForMatchingOption(value, 150, '.ant-select-dropdown:not(.ant-select-dropdown-hidden)');
+    }
     if (!option) return { success: false, reason: 'Ant Design 选项未匹配' };
     clickOption(option);
     return { success: true };
@@ -172,20 +235,19 @@ class GenericSelectAdapter implements ComponentAdapter {
   }
 }
 
-function setNativeValue(element: HTMLInputElement | HTMLTextAreaElement, value: string): void {
+function setNativeValue(element: HTMLInputElement | HTMLTextAreaElement, value: string, blur = true): void {
   element.focus();
   const prototype = element instanceof HTMLInputElement ? HTMLInputElement.prototype : HTMLTextAreaElement.prototype;
   const setter = Object.getOwnPropertyDescriptor(prototype, 'value')?.set;
   if (setter) setter.call(element, value);
   else element.value = value;
   dispatchInputEvents(element, value);
-  element.blur();
+  if (blur) element.blur();
 }
 
 function dispatchInputEvents(element: HTMLElement, value: string): void {
   element.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: value }));
   element.dispatchEvent(new Event('change', { bubbles: true }));
-  element.dispatchEvent(new FocusEvent('blur', { bubbles: true }));
 }
 
 function sameText(left: string, right: string): boolean {

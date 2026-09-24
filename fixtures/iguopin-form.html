@@ -8,6 +8,7 @@
   .ant-form-item-hidden, [hidden] { display: none; }
 </style>
 
+<input placeholder="请输入职位或企业名称">
 <form class="ant-form ant-form-vertical">
   <div class="ant-form-item">
     <div class="ant-form-item-label"><label for="full_name">姓名</label></div>
@@ -49,3 +50,38 @@
     <div class="ant-form-item ant-form-item-hidden"><input id="highest_school" class="ant-input"></div>
   </div>
 </form>
+<script>
+// Readonly date selection must commit through a calendar, not input.value.
+const birth = document.querySelector('#birthdate');
+let year = 2026, decade = 2020, month = '09';
+let popup;
+function renderCalendar(mode) {
+  popup.innerHTML = '';
+  const panel = document.createElement('div');
+  panel.className = `ant-picker-${mode}-panel`;
+  popup.append(panel);
+  function button(cls, text, action) {
+    const b = document.createElement('button'); b.type = 'button'; b.className = cls; b.textContent = text; b.onclick = action; panel.append(b);
+  }
+  function cell(title, action) {
+    const c = document.createElement('div'); c.className = 'ant-picker-cell'; c.title = title; c.textContent = title; c.onclick = action; panel.append(c);
+  }
+  if (mode === 'year') {
+    button('ant-picker-header-super-prev-btn', 'previous decade', () => { decade -= 10; renderCalendar('year'); });
+    button('ant-picker-header-super-next-btn', 'next decade', () => { decade += 10; renderCalendar('year'); });
+    for (let y = decade; y < decade + 10; y++) cell(String(y), () => { year = y; renderCalendar('date'); });
+  } else if (mode === 'month') {
+    for (let m = 1; m <= 12; m++) cell(`${year}-${String(m).padStart(2, '0')}`, () => { month = String(m).padStart(2, '0'); renderCalendar('date'); });
+  } else {
+    button('ant-picker-year-btn', String(year), () => renderCalendar('year'));
+    button('ant-picker-month-btn', month, () => renderCalendar('month'));
+    for (let d = 1; d <= 28; d++) {
+      const value = `${year}-${month}-${String(d).padStart(2, '0')}`;
+      cell(value, () => { birth.value = value; birth.dataset.committed = value; popup.remove(); });
+    }
+  }
+}
+birth.onclick = () => {
+  popup?.remove(); popup = document.createElement('div'); popup.className = 'ant-picker-dropdown'; document.body.append(popup); renderCalendar('date');
+};
+</script>

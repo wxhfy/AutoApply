@@ -120,14 +120,46 @@ def main() -> None:
                 assert fields["出生日期"]["componentType"] == "date"
                 assert fields["现居住地"]["componentType"] == "cascader"
                 assert fields["毕业院校"]["componentType"] == "autocomplete"
+                assert fields["性别"]["currentValue"] == "", "unchecked radio value is an option ID, not a selected value"
+                assert not any(field["placeholder"] == "请输入职位或企业名称" for field in scan["fields"])
                 assert len([field for field in scan["fields"] if field["label"] == "性别"]) == 1
                 assert len([field for field in scan["fields"] if field["label"] == "毕业院校"]) == 1
                 verify_page(page, extension_page, iguopin_url, [
                     ("姓名", "张三", "NAME"),
                     ("性别", "男", "GENDER"),
+                    ("出生日期", "2001-06-01", "BIRTH_DATE"),
                 ])
                 assert page.locator("#full_name").input_value() == "张三"
                 assert page.locator(".ant-radio-button-input").first.is_checked()
+                assert page.locator("#birthdate").get_attribute("data-committed") == "2001-06-01"
+
+                dynamic_url = "http://127.0.0.1:8765/fixtures/dynamic-form.html"
+                page.goto(dynamic_url)
+                page.wait_for_load_state("networkidle")
+                before = send_message(extension_page, dynamic_url, {"type": "ANALYZE"})
+                await_profile = {
+                    "basic": {"name": "测试用户"},
+                    "education": [{"degree": "硕士", "major": "计算机科学与技术"}],
+                }
+                extension_page.evaluate("async p => chrome.storage.local.set({profile:p, fillHistory:[]})", await_profile)
+                extension_page.reload()
+                # A normal tab hosts the popup in this test. Route only its active-tab
+                # lookup to the fixture; all content-script messages stay real.
+                extension_page.evaluate("""async url => {
+                    const query = chrome.tabs.query.bind(chrome.tabs);
+                    const target = (await query({})).find(t => t.url === url);
+                    chrome.tabs.query = async options => options.active ? [target] : query(options);
+                }""", dynamic_url)
+                extension_page.get_by_role("button", name="一键智能填写", exact=False).click()
+                extension_page.get_by_text("已验证 3 个，待确认 0 个，失败 0 个", exact=True).wait_for(timeout=15000)
+                assert page.locator("#major").input_value() == "计算机科学与技术"
+                assert page.locator("#name").input_value() == "测试用户"
+                after = send_message(extension_page, dynamic_url, {"type": "ANALYZE"})
+                old_ids = {f["label"]: f["id"] for f in before["fields"]}
+                new_ids = {f["label"]: f["id"] for f in after["fields"]}
+                assert all(new_ids[label] == field_id for label, field_id in old_ids.items())
+                history = extension_page.evaluate("async () => (await chrome.storage.local.get('fillHistory')).fillHistory")
+                assert len(history) == 1 and history[0]["filledCount"] == 3, history
             finally:
                 context.close()
 

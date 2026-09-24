@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="zh"><meta charset="utf-8"><title>动态学历表单</title>
+<form>
+  <label for="degree">最高学历</label>
+  <select id="degree"><option value="">请选择</option><option>硕士</option></select>
+  <label for="name">姓名</label><input id="name">
+</form>
+<script>
+document.querySelector('#degree').addEventListener('change', () => {
+  if (document.querySelector('#major')) return;
+  const item = document.createElement('div');
+  item.innerHTML = '<label for="major">专业</label><input id="major">';
+  document.querySelector('form').prepend(item);
+});
+</script></html>

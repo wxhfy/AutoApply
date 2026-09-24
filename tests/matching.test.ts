@@ -29,6 +29,11 @@ test('normalizes degree aliases to the same canonical value', () => {
   assert.equal(normalizeValue("Master's", 'degree'), 'MASTER');
 });
 
+test('school labels with explanatory notes still match the school field', () => {
+  const [proposal] = matchFields([{ id: 'school', tag: 'input', type: 'search', label: '毕业院校（此处仅填写完整学校名称，方便用人单位搜索）', placeholder: '', name: '', ariaLabel: '', nearbyText: '', currentValue: '', required: true, componentType: 'autocomplete', locator: '#school' }], profile);
+  assert.equal(proposal.value, '燕山大学');
+});
+
 test('adapts profile month values to the browser date control contract', () => {
   assert.equal(formatDateForControl('2027-06', 'month'), '2027-06');
   assert.equal(formatDateForControl('2027-06', 'date'), '2027-06-01');
