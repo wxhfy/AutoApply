@@ -93,9 +93,10 @@ class RadioCheckboxAdapter implements ComponentAdapter {
 
   async fill(_field: DOMField, element: HTMLElement, value: string): Promise<AdapterFillResult> {
     if (!(element instanceof HTMLInputElement)) return { success: false, reason: '不是勾选控件' };
+    const group = element.closest<HTMLElement>('[role="radiogroup"], .ant-radio-group, fieldset, .ant-form-item');
     const candidates = element.name
       ? Array.from(document.querySelectorAll<HTMLInputElement>(`input[name="${CSS.escape(element.name)}"]`))
-      : [element];
+      : Array.from(group?.querySelectorAll<HTMLInputElement>(`input[type="${element.type}"]`) || [element]);
     const target = candidates.find(input => sameText(input.value, value) || sameText(getLabel(input), value));
     if (!target) return { success: false, reason: '未找到可选项' };
     if (!target.checked) target.click();

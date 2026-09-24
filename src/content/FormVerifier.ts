@@ -42,9 +42,10 @@ function result(fieldId: string, status: VerifyResult['status'], expectedValue: 
 function readValue(field: DOMField, element: HTMLElement): string | null {
   if (element instanceof HTMLSelectElement) return element.selectedOptions[0]?.text || null;
   if (element instanceof HTMLInputElement && (field.componentType === 'radio' || field.componentType === 'checkbox')) {
+    const group = element.closest<HTMLElement>('[role="radiogroup"], .ant-radio-group, fieldset, .ant-form-item');
     const selected = element.name
       ? document.querySelector<HTMLInputElement>(`input[name="${CSS.escape(element.name)}"]:checked`)
-      : element.checked ? element : null;
+      : group?.querySelector<HTMLInputElement>(`input[type="${element.type}"]:checked`) || (element.checked ? element : null);
     if (!selected) return null;
     if (selected.id) return document.querySelector(`label[for="${CSS.escape(selected.id)}"]`)?.textContent?.trim() || selected.value;
     return selected.closest('label')?.textContent?.trim() || selected.value;

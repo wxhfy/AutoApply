@@ -1,0 +1,51 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>AutoApply IGuopin-shaped form fixture</title>
+<style>
+  .fixed-control { position: fixed; width: 320px; height: 32px; }
+  .ant-select-selection-search-input { opacity: 0; }
+  .ant-radio-button-input { width: 0; height: 0; }
+  .ant-form-item-hidden, [hidden] { display: none; }
+</style>
+
+<form class="ant-form ant-form-vertical">
+  <div class="ant-form-item">
+    <div class="ant-form-item-label"><label for="full_name">姓名</label></div>
+    <div class="ant-form-item-control"><input id="full_name" class="ant-input fixed-control" placeholder="请填写真实姓名"></div>
+  </div>
+
+  <div class="ant-form-item">
+    <div class="ant-form-item-label"><label for="birthdate">出生日期</label></div>
+    <div class="ant-form-item-control"><div class="ant-picker"><input id="birthdate" class="fixed-control" readonly placeholder="请选择出生日期"></div></div>
+  </div>
+
+  <div class="ant-form-item">
+    <div class="ant-form-item-label"><label>性别</label></div>
+    <div class="ant-form-item-control ant-radio-group">
+      <label class="ant-radio-button-wrapper"><span><input class="ant-radio-button-input" type="radio" value="114XDxDX"></span>男</label>
+      <label class="ant-radio-button-wrapper"><span><input class="ant-radio-button-input" type="radio" value="116ufbe1"></span>女</label>
+    </div>
+  </div>
+
+  <div class="ant-form-item resume-common-form-item cascader-modal-field cascader-modal-location">
+    <div class="ant-form-item-label"><label>现居住地</label></div>
+    <div class="ant-form-item-control"><div><div><div><div>
+      <div class="ant-form-item"><div class="ant-form-item-control"><div class="ant-select ant-cascader"><div class="ant-select-selector">
+        <input id="location-fe-1601-customization" class="ant-select-selection-search-input fixed-control" role="combobox" readonly>
+        <span>请选择现居住地</span>
+      </div></div></div></div>
+    </div></div></div></div></div>
+    <input hidden class="ant-input" value="">
+  </div>
+
+  <div class="ant-form-item resume-common-form-item form-item-autocomplete-field autocomplete-highest_school auto-complete-field">
+    <div class="ant-form-item-label"><label>毕业院校</label></div>
+    <div class="ant-form-item-control"><div><div><div><div>
+      <div class="ant-form-item"><div class="ant-form-item-control"><div class="ant-select ant-select-show-search"><div class="ant-select-selector">
+        <input id="highest_school-fe-1601-customization" class="ant-select-selection-search-input fixed-control" role="combobox">
+        <span>请填写毕业院校</span>
+      </div></div></div></div>
+    </div></div></div></div></div>
+    <div class="ant-form-item ant-form-item-hidden"><input id="highest_school" class="ant-input"></div>
+  </div>
+</form>

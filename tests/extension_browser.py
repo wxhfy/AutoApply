@@ -97,6 +97,37 @@ def main() -> None:
                 page.wait_for_load_state("networkidle")
                 verify_page(page, extension_page, custom_url, [("自定义毕业时间", "2027-06", "GRADUATION_DATE")])
                 assert page.locator(".date-value").inner_text() == "2027年6月"
+
+                moka_url = "http://127.0.0.1:8765/fixtures/moka-form.html"
+                page.goto(moka_url)
+                page.wait_for_load_state("networkidle")
+                scan = send_message(extension_page, moka_url, {"type": "ANALYZE"})
+                assert scan["type"] == "ANALYZE_RESULT"
+                fields = {field["label"]: field for field in scan["fields"]}
+                assert fields["姓名"]["componentType"] == "text"
+                assert fields["出生日期 (年龄)"]["componentType"] == "date"
+                assert fields["性别"]["componentType"] == "custom-select"
+
+                iguopin_url = "http://127.0.0.1:8765/fixtures/iguopin-form.html"
+                page.goto(iguopin_url)
+                page.wait_for_load_state("networkidle")
+                scan = send_message(extension_page, iguopin_url, {"type": "ANALYZE"})
+                assert scan["type"] == "ANALYZE_RESULT"
+                fields = {field["label"]: field for field in scan["fields"]}
+                assert "现居住地" in fields, scan["fields"]
+                assert "毕业院校" in fields, scan["fields"]
+                assert fields["姓名"]["componentType"] == "text"
+                assert fields["出生日期"]["componentType"] == "date"
+                assert fields["现居住地"]["componentType"] == "cascader"
+                assert fields["毕业院校"]["componentType"] == "autocomplete"
+                assert len([field for field in scan["fields"] if field["label"] == "性别"]) == 1
+                assert len([field for field in scan["fields"] if field["label"] == "毕业院校"]) == 1
+                verify_page(page, extension_page, iguopin_url, [
+                    ("姓名", "张三", "NAME"),
+                    ("性别", "男", "GENDER"),
+                ])
+                assert page.locator("#full_name").input_value() == "张三"
+                assert page.locator(".ant-radio-button-input").first.is_checked()
             finally:
                 context.close()
 

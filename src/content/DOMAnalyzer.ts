@@ -35,6 +35,7 @@ const LABEL_SELECTORS = [
   '.MuiInputLabel-root',
   '[class*="form-item-label"]',
   '[class*="formItem-label"]',
+  '[class*="title"]',
   '[class*="label"]',
   'label',
 ];
@@ -43,6 +44,7 @@ export function analyzePage(): DOMField[] {
   const elements = document.querySelectorAll(FIELD_SELECTOR);
   const fields: DOMField[] = [];
   const seen = new Set<HTMLElement>();
+  const seenRadioGroups = new Set<string | HTMLElement>();
 
   elements.forEach((el, index) => {
     const element = el as HTMLElement;
@@ -51,6 +53,15 @@ export function analyzePage(): DOMField[] {
     if (seen.has(element)) return;
     if (isHidden(element)) return;
     seen.add(element);
+
+    const radioGroup = element instanceof HTMLInputElement && element.type === 'radio'
+      ? getRadioGroup(element)
+      : null;
+    const radioGroupKey = element instanceof HTMLInputElement && element.type === 'radio'
+      ? element.name || radioGroup
+      : null;
+    if (radioGroupKey && seenRadioGroups.has(radioGroupKey)) return;
+    if (radioGroupKey) seenRadioGroups.add(radioGroupKey);
 
     const fieldId = `jf-${index}`;
     element.setAttribute('data-jf-id', fieldId);
@@ -61,7 +72,7 @@ export function analyzePage(): DOMField[] {
       id: fieldId,
       tag: element.tagName.toLowerCase(),
       type: (inputEl as HTMLInputElement).type || element.getAttribute('role') || 'text',
-      label: findLabel(element),
+      label: findLabel(radioGroup || element),
       placeholder: getPlaceholder(element),
       name: inputEl.name || element.getAttribute('data-name') || element.getAttribute('data-field') || '',
       ariaLabel: element.getAttribute('aria-label') || '',
@@ -84,6 +95,10 @@ export function analyzePage(): DOMField[] {
   });
 
   return fields;
+}
+
+function getRadioGroup(input: HTMLInputElement): HTMLElement | null {
+  return input.closest<HTMLElement>('[role="radiogroup"], .ant-radio-group, fieldset, .ant-form-item');
 }
 
 function getPlaceholder(element: HTMLElement): string {
@@ -110,9 +125,10 @@ function getComponentType(element: HTMLElement): DOMField['componentType'] {
     if (element.type === 'radio') return 'radio';
     if (element.type === 'checkbox') return 'checkbox';
     if (element.type === 'date' || element.type === 'month') return 'date';
-    const autocomplete = element.getAttribute('autocomplete') || '';
+    if (element.readOnly && element.closest('.ant-picker, [class*="day_info"], [class*="date-picker"], [class*="datepicker"], [class*="DatePicker"]')) return 'date';
+    if (element.closest('.ant-cascader, [class*="cascader"], [class*="Cascader"]')) return 'cascader';
+    if (element.closest('[class*="Select-container"], [class*="select-container"], [class*="selectContainer"]')) return 'custom-select';
     if (element.closest('[data-autofill-autocomplete], [class*="autocomplete"], [class*="Autocomplete"]')) return 'autocomplete';
-    if (autocomplete && !['off', 'on', 'name', 'email', 'tel', 'url', 'username', 'new-password', 'current-password'].includes(autocomplete.toLowerCase())) return 'autocomplete';
   }
   if (element instanceof HTMLTextAreaElement) return 'textarea';
   if (element.isContentEditable) return 'contenteditable';
@@ -123,9 +139,22 @@ function getComponentType(element: HTMLElement): DOMField['componentType'] {
 }
 
 function isHidden(el: HTMLElement): boolean {
-  if (el.offsetParent === null && el.style.position !== 'fixed') return true;
+  if (el.hidden || el.closest('[hidden], .ant-form-item-hidden')) return true;
   const style = window.getComputedStyle(el);
-  return style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0';
+  if (style.display === 'none' || style.visibility === 'hidden') return true;
+
+  const isProxyControl = el.getAttribute('role') === 'combobox'
+    || (el instanceof HTMLInputElement && ['radio', 'checkbox'].includes(el.type));
+  if (style.opacity === '0' && !isProxyControl) return true;
+
+  const rect = el.getBoundingClientRect();
+  if (rect.width > 0 && rect.height > 0) return false;
+  if (isProxyControl) {
+    const wrapper = el.closest<HTMLElement>('label, .ant-radio-button-wrapper, .ant-checkbox-wrapper, .ant-select');
+    const wrapperRect = wrapper?.getBoundingClientRect();
+    if (wrapperRect && wrapperRect.width > 0 && wrapperRect.height > 0) return false;
+  }
+  return true;
 }
 
 // ─── Label Detection (multi-strategy) ───
@@ -147,10 +176,16 @@ function findLabel(element: HTMLElement): string {
   }
 
   // Strategy 3: find form-item wrapper and its label element
-  const formItem = findFormItemWrapper(element);
-  if (formItem) {
-    const labelEl = findLabelInFormItem(formItem, element);
+  let formItem = findFormItemWrapper(element);
+  const nearestFormItem = formItem;
+  while (formItem) {
+    const labelEl = findExplicitLabelInFormItem(formItem, element);
     if (labelEl) return cleanText(labelEl);
+    formItem = findFormItemWrapper(formItem);
+  }
+  if (nearestFormItem) {
+    const fallback = findFallbackLabelInFormItem(nearestFormItem, element);
+    if (fallback) return cleanText(fallback);
   }
 
   // Strategy 4: aria-labelledby
@@ -193,13 +228,15 @@ function findFormItemWrapper(element: HTMLElement): HTMLElement | null {
     for (const selector of FORM_ITEM_SELECTORS) {
       if (current.matches(selector)) return current;
     }
+    const hasTitleChild = Array.from(current.children).some(child =>
+      !child.contains(element) && /(^|[-_])(title|label)([-_]|$)/i.test(child.className || ''),
+    );
+    if (hasTitleChild) return current;
   }
   return null;
 }
 
-/** Find label text within a form-item wrapper */
-function findLabelInFormItem(formItem: HTMLElement, field: HTMLElement): string {
-  // Try known label selectors first
+function findExplicitLabelInFormItem(formItem: HTMLElement, field: HTMLElement): string {
   for (const selector of LABEL_SELECTORS) {
     const labelEl = formItem.querySelector(selector);
     if (labelEl && !labelEl.contains(field)) {
@@ -207,8 +244,10 @@ function findLabelInFormItem(formItem: HTMLElement, field: HTMLElement): string 
       if (text && text.length < 80) return text;
     }
   }
+  return '';
+}
 
-  // Fallback: first text node or short text element before the input
+function findFallbackLabelInFormItem(formItem: HTMLElement, field: HTMLElement): string {
   const walker = document.createTreeWalker(formItem, NodeFilter.SHOW_TEXT);
   const texts: string[] = [];
   let node: Text | null;

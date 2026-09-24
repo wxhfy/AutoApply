@@ -4,6 +4,12 @@ AI 驱动的网申自动填写助手，Chrome 浏览器扩展。
 
 上传简历 PDF → 自动解析 → 打开招聘网站 → 一键填写。
 
+## 项目来源与当前边界
+
+本项目基于开源项目 [`freecodetiger/job-filler`](https://github.com/freecodetiger/job-filler) 二次开发，保留上游 Git 历史与 `upstream` 远程。当前版本重点重构了 Profile 驱动的匹配、`AutofillOrchestrator` 编排、组件适配和填写后验证。
+
+已通过自动化测试的范围包括原生输入/单选/复选/下拉、延迟 autocomplete、日期、级联识别，以及按真实 DOM 结构制作的 Moka 和国聘 Ant Design 表单 fixture。真实招聘网站仍可能因组件版本或站点行为变化需要适配；测试通过不等于已经在所有招聘网站完成提交验证。
+
 ## 功能
 
 - **📄 简历导入** — 上传 Word 导出的 PDF，AI 自动提取结构化个人信息
@@ -18,8 +24,8 @@ AI 驱动的网申自动填写助手，Chrome 浏览器扩展。
 
 ```bash
 # 1. 克隆仓库
-git clone https://github.com/freecodetiger/job-filler.git
-cd job-filler
+git clone https://github.com/wxhfy/AutoApply.git
+cd AutoApply
 
 # 2. 安装依赖
 npm install --legacy-peer-deps
