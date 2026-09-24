@@ -1,6 +1,7 @@
 import type { AutofillSummary, DOMField, UserProfile, VerifyResult } from '../types';
-import { addHistory } from '../storage';
+import { addHistory, getApiConfig } from '../storage';
 import { matchFields } from '../matching/MatchingEngine';
+import { createLLMClient } from '../llm';
 
 export type AutofillStep = 'scan' | 'match' | 'fill' | 'verify';
 export interface AutofillProgress {
@@ -30,7 +31,30 @@ export async function runAutofill(
   if (!scan.fields.length) break;
 
   onProgress?.({ step: 'match', detail: `正在匹配 ${scan.fields.length} 个字段` });
-  const proposals = matchFields(scan.fields, profile);
+  let proposals = matchFields(scan.fields, profile);
+  // Optional second pass: only unresolved fields go to the configured LLM.
+  // Deterministic matches remain authoritative; LLM output still goes through
+  // the same component adapters and verifier before it is accepted.
+  const apiConfig = await getApiConfig();
+  if (apiConfig?.endpoint && apiConfig.apiKey && apiConfig.model) {
+    const unresolved = scan.fields.filter(field => {
+      const proposal = proposals.find(item => item.fieldId === field.id);
+      return proposal?.action !== 'auto_fill';
+    });
+    if (unresolved.length) {
+      try {
+        const llmProposals = await createLLMClient(apiConfig.endpoint, apiConfig.apiKey, apiConfig.model)
+          .matchFields(unresolved, profile);
+        const byId = new Map(llmProposals.map(item => [item.fieldId, item]));
+        proposals = proposals.map(item => {
+          const candidate = byId.get(item.fieldId);
+          return candidate?.action === 'auto_fill' && candidate.value ? candidate : item;
+        });
+      } catch (error) {
+        console.warn('[AutofillOrchestrator] LLM fallback skipped:', error);
+      }
+    }
+  }
   const fillableCount = proposals.filter(proposal => proposal.action === 'auto_fill').length;
 
   onProgress?.({ step: 'fill', detail: '正在写入可确定字段', current: 0, total: fillableCount });
