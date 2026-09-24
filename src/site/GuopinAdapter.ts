@@ -1,7 +1,7 @@
 import type { DOMField } from '../types';
 
 export function canHandleGuopinField(field: DOMField, element: HTMLElement): boolean {
-  return field.componentType === 'cascader' || field.name === 'work_status' || /location|hukou/.test(element.id);
+  return field.componentType === 'cascader' || field.name === 'work_status' || /work_status|location|hukou/.test(element.id);
 }
 
 export async function fillGuopinField(field: DOMField, element: HTMLElement, value: string): Promise<{ success: boolean; reason?: string }> {
