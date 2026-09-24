@@ -49,6 +49,8 @@ export interface BasicInfo {
   politicalStatus: string;
   nativePlace: string;
   currentCity: string;
+  hukouPlace?: string;
+  jobStatus?: string;
 }
 
 export interface Links {
@@ -113,7 +115,7 @@ export interface UserProfile {
 }
 
 export const EMPTY_PROFILE: UserProfile = {
-  basic: { name: '', phone: '', email: '', gender: '', birthDate: '', ethnicity: '', politicalStatus: '', nativePlace: '', currentCity: '' },
+  basic: { name: '', phone: '', email: '', gender: '', birthDate: '', ethnicity: '', politicalStatus: '', nativePlace: '', currentCity: '', hukouPlace: '', jobStatus: '' },
   links: { github: '', linkedin: '', website: '' },
   education: [],
   experience: [],

@@ -159,6 +159,10 @@ const ProfileEditor: React.FC<Props> = ({ profile, onSave }) => {
           <Field label="籍贯" value={form.basic.nativePlace} onChange={v => updateBasic('nativePlace', v)} placeholder="广东深圳" />
         </FieldRow>
         <Field label="现居城市" value={form.basic.currentCity} onChange={v => updateBasic('currentCity', v)} placeholder="北京" />
+        <FieldRow>
+          <Field label="户口所在地" value={form.basic.hukouPlace || ''} onChange={v => updateBasic('hukouPlace', v)} placeholder="江西省南昌市进贤县" />
+          <Field label="求职状态" value={form.basic.jobStatus || ''} onChange={v => updateBasic('jobStatus', v)} placeholder="我是毕业生，参加校招" />
+        </FieldRow>
       </section>
 
       {/* ── Links ── */}

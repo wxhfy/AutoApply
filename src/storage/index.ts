@@ -103,6 +103,8 @@ function migrateProfile(raw: unknown): UserProfile {
       politicalStatus: p.basic?.politicalStatus || '',
       nativePlace: p.basic?.nativePlace || p.basic?.location || '',
       currentCity: p.basic?.currentCity || '',
+      hukouPlace: p.basic?.hukouPlace || '',
+      jobStatus: p.basic?.jobStatus || '',
     },
     links: {
       github: p.links?.github || '',
