@@ -7,6 +7,7 @@ export interface FieldRule {
   aliases: string[];
   patterns?: RegExp[];
   valueKind?: ValueKind;
+  locationDepth?: number;
 }
 
 export const FIELD_RULES: FieldRule[] = [
@@ -16,6 +17,7 @@ export const FIELD_RULES: FieldRule[] = [
   { fieldType: 'GENDER', profilePath: 'basic.gender', exact: ['性别'], aliases: ['男女', 'gender', 'sex'], valueKind: 'gender' },
   { fieldType: 'BIRTH_DATE', profilePath: 'basic.birthDate', exact: ['出生日期'], aliases: ['生日', '出生年月', 'birthdate', 'dateofbirth'], valueKind: 'date' },
   { fieldType: 'LOCATION', profilePath: 'basic.currentCity', exact: ['现居城市'], aliases: ['居住城市', '当前城市', '所在城市', 'currentcity'], valueKind: 'text' },
+  { fieldType: 'LOCATION', profilePath: 'basic.currentCity', exact: ['工作地区'], aliases: ['期望工作地区', '期望工作城市', 'workregion'], valueKind: 'location', locationDepth: 2 },
   { fieldType: 'LOCATION', profilePath: 'basic.currentCity', exact: ['现居住地'], aliases: ['居住地', 'currentlocation', 'location-fe-1601-customization'], valueKind: 'location' },
   { fieldType: 'LOCATION', profilePath: 'basic.hukouPlace', exact: ['户口所在地'], aliases: ['户籍所在地', '户口', 'hukou-fe-1601-customization'], valueKind: 'location' },
   { fieldType: 'OTHER', profilePath: 'basic.jobStatus', exact: ['求职状态'], aliases: ['您的求职状态是', 'jobstatus', 'work_status'], valueKind: 'text' },

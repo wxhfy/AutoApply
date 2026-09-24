@@ -1,4 +1,13 @@
 import type { DOMField } from '../types';
+import type { SiteAdapter } from './SiteAdapter.ts';
+
+export const guopinSiteAdapter: SiteAdapter = {
+  canHandle: url => {
+    try { return new URL(url).hostname.endsWith('iguopin.com'); } catch { return false; }
+  },
+  canFill: canHandleGuopinField,
+  fill: fillGuopinField,
+};
 
 export function canHandleGuopinField(field: DOMField, element: HTMLElement): boolean {
   return field.componentType === 'cascader' || field.name === 'work_status' || /work_status|location|hukou/.test(element.id);
@@ -15,11 +24,14 @@ export async function fillGuopinField(field: DOMField, element: HTMLElement, val
       : { success: false, reason: '国聘求职状态已点击但未提交' };
   }
   const parts = parseGuopinAddress(value);
-  if (parts.length < 3) return { success: false, reason: '省市区需要完整的三级地址' };
-  closeVisibleAddressModals();
+  if (parts.length < 2) return { success: false, reason: '地址至少需要省市两级' };
+  await closeVisibleAddressModals();
+  const previouslyVisible = new Set(visibleAddressModals());
   activateControl(element);
+  const modal = await waitActiveAddressModal(previouslyVisible, 2500);
+  if (!modal) return { success: false, reason: '国聘地址弹窗未出现' };
   for (const part of parts) {
-    const option = await waitText(part, 2500, 'address');
+    const option = await waitTextInRoot(modal, part, 2500);
     if (!option) return { success: false, reason: `国聘地址选项未出现：${part}` };
     clickInteractiveOption(option);
     await pause(250);
@@ -30,9 +42,9 @@ export async function fillGuopinField(field: DOMField, element: HTMLElement, val
 
 export function parseGuopinAddress(value: string): string[] {
   const compact = value.replace(/[>/／|,，\s]+/g, '');
-  const structured = /^(.*?省)(.*?市)(.*?[区县])$/.exec(compact);
-  const parts = structured ? structured.slice(1) : value.split(/[>/／|,，\s]+/).map(item => item.trim()).filter(Boolean);
-  if (parts.length < 3) return parts;
+  const structured = /^(.*?省)(.*?市)(.*?[区县])?$/.exec(compact);
+  const parts = structured ? structured.slice(1).filter(Boolean) : value.split(/[>/／|,，\s]+/).map(item => item.trim()).filter(Boolean);
+  if (parts.length < 2) return parts;
   return [
     parts[0].replace(/省$/, ''),
     parts[1].replace(/市$/, ''),
@@ -61,6 +73,33 @@ function waitText(text: string, timeoutMs: number, kind: 'select' | 'address'): 
     const finish = (item: HTMLElement | null) => { observer.disconnect(); window.clearTimeout(timer); resolve(item); };
     observer.observe(document.body, { childList: true, subtree: true });
   });
+}
+
+function waitTextInRoot(root: HTMLElement, text: string, timeoutMs: number): Promise<HTMLElement | null> {
+  const find = () => Array.from(root.querySelectorAll<HTMLElement>('*'))
+    .filter(node => isVisible(node) && node.textContent?.trim() === text)
+    .filter(node => !Array.from(node.children).some(child => child.textContent?.trim() === text))
+    .sort((left, right) => area(left) - area(right))[0] || null;
+  const immediate = find();
+  if (immediate) return Promise.resolve(immediate);
+  return new Promise(resolve => {
+    const observer = new MutationObserver(() => { const item = find(); if (item) finish(item); });
+    const timer = window.setTimeout(() => finish(null), timeoutMs);
+    const finish = (item: HTMLElement | null) => { observer.disconnect(); window.clearTimeout(timer); resolve(item); };
+    observer.observe(root, { childList: true, subtree: true });
+  });
+}
+
+async function waitActiveAddressModal(previouslyVisible: Set<HTMLElement>, timeoutMs: number): Promise<HTMLElement | null> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const visible = visibleAddressModals();
+    const opened = visible.filter(modal => !previouslyVisible.has(modal));
+    if (opened.length) return topmost(opened);
+    if (visible.length) return topmost(visible);
+    await pause(50);
+  }
+  return null;
 }
 
 function clickInteractiveOption(element: HTMLElement): void {
@@ -92,13 +131,27 @@ async function waitAddressValue(element: HTMLElement, parts: string[], timeoutMs
   return read();
 }
 
-function closeVisibleAddressModals(): void {
-  Array.from(document.querySelectorAll<HTMLElement>('.ant-modal-wrap'))
-    .filter(isVisible)
-    .forEach(modal => {
-      const close = modal.querySelector<HTMLElement>('.ant-modal-close, [aria-label="Close"], [aria-label="关闭"]');
-      if (close) close.click();
-    });
+async function closeVisibleAddressModals(): Promise<void> {
+  visibleAddressModals().forEach(modal => {
+    const close = modal.querySelector<HTMLElement>('.ant-modal-close, [aria-label="Close"], [aria-label="关闭"]');
+    if (close) activateControl(close);
+  });
+  document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true }));
+  for (let attempt = 0; attempt < 6 && visibleAddressModals().length; attempt++) await pause(50);
+}
+
+function visibleAddressModals(): HTMLElement[] {
+  return Array.from(document.querySelectorAll<HTMLElement>('.ant-modal-wrap')).filter(isVisible);
+}
+
+function topmost(elements: HTMLElement[]): HTMLElement {
+  return elements.reduce((top, candidate) => overlayRank(candidate) >= overlayRank(top) ? candidate : top);
+}
+
+function overlayRank(element: HTMLElement): number {
+  const zIndex = Number.parseInt(window.getComputedStyle(element).zIndex, 10);
+  return (Number.isFinite(zIndex) ? zIndex : 0) * 1_000_000
+    + Array.from(document.querySelectorAll<HTMLElement>('.ant-modal-wrap')).indexOf(element);
 }
 
 function pause(ms: number): Promise<void> { return new Promise(resolve => setTimeout(resolve, ms)); }

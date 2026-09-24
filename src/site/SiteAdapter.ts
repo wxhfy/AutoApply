@@ -1,4 +1,10 @@
 import type { DOMField } from '../types';
+import { guopinSiteAdapter } from './GuopinAdapter.ts';
+
+export interface SiteFillResult {
+  success: boolean;
+  reason?: string;
+}
 
 /**
  * Site adapters are intentionally separate from component adapters. Add one
@@ -7,9 +13,12 @@ import type { DOMField } from '../types';
  */
 export interface SiteAdapter {
   canHandle(url: string): boolean;
-  enhanceField(field: DOMField): DOMField;
+  canFill(field: DOMField, element: HTMLElement): boolean;
+  fill(field: DOMField, element: HTMLElement, value: string): Promise<SiteFillResult>;
 }
 
-export function getSiteAdapter(_url: string): SiteAdapter | null {
-  return null;
+const SITE_ADAPTERS: SiteAdapter[] = [guopinSiteAdapter];
+
+export function getSiteAdapter(url: string): SiteAdapter | null {
+  return SITE_ADAPTERS.find(adapter => adapter.canHandle(url)) || null;
 }

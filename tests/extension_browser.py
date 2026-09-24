@@ -66,6 +66,8 @@ def main() -> None:
                 args=[
                     f"--disable-extensions-except={ROOT / 'dist'}",
                     f"--load-extension={ROOT / 'dist'}",
+                    "--host-resolver-rules=MAP fixture.iguopin.com 127.0.0.1",
+                    "--no-proxy-server",
                 ],
             )
             try:
@@ -92,6 +94,14 @@ def main() -> None:
                 assert page.locator("#degree").input_value() == "硕士研究生"
                 assert page.locator("#graduation").input_value() == "2027-06"
 
+                custom_select_url = "http://127.0.0.1:8765/fixtures/custom-select.html"
+                page.goto(custom_select_url)
+                page.wait_for_load_state("networkidle")
+                verify_page(page, extension_page, custom_select_url, [
+                    ("最高学历", "硕士研究生", "DEGREE"),
+                ])
+                assert page.locator(".selected").inner_text() == "硕士研究生"
+
                 custom_url = "http://127.0.0.1:8765/fixtures/date-picker.html"
                 page.goto(custom_url)
                 page.wait_for_load_state("networkidle")
@@ -108,13 +118,14 @@ def main() -> None:
                 assert fields["出生日期 (年龄)"]["componentType"] == "date"
                 assert fields["性别"]["componentType"] == "custom-select"
 
-                iguopin_url = "http://127.0.0.1:8765/fixtures/iguopin-form.html"
+                iguopin_url = "http://fixture.iguopin.com:8765/fixtures/iguopin-form.html"
                 page.goto(iguopin_url)
                 page.wait_for_load_state("networkidle")
                 scan = send_message(extension_page, iguopin_url, {"type": "ANALYZE"})
                 assert scan["type"] == "ANALYZE_RESULT"
                 fields = {field["label"]: field for field in scan["fields"]}
                 assert "现居住地" in fields, scan["fields"]
+                assert "户口所在地" in fields, scan["fields"]
                 assert "毕业院校" in fields, scan["fields"]
                 assert fields["姓名"]["componentType"] == "text"
                 assert fields["出生日期"]["componentType"] == "date"
@@ -128,10 +139,14 @@ def main() -> None:
                     ("姓名", "张三", "NAME"),
                     ("性别", "男", "GENDER"),
                     ("出生日期", "2001-06-01", "BIRTH_DATE"),
+                    ("现居住地", "河北省秦皇岛市海港区", "LOCATION"),
+                    ("户口所在地", "江西省南昌市进贤县", "LOCATION"),
                 ])
                 assert page.locator("#full_name").input_value() == "张三"
                 assert page.locator(".ant-radio-button-input").first.is_checked()
                 assert page.locator("#birthdate").get_attribute("data-committed") == "2001-06-01"
+                assert "河北 / 秦皇岛 / 海港区" in page.locator(".cascader-modal-location .ant-select-selection-item").inner_text()
+                assert "江西 / 南昌 / 进贤县" in page.locator(".cascader-modal-hukou .ant-select-selection-item").inner_text()
 
                 dynamic_url = "http://127.0.0.1:8765/fixtures/dynamic-form.html"
                 page.goto(dynamic_url)
@@ -143,13 +158,9 @@ def main() -> None:
                 }
                 extension_page.evaluate("async p => chrome.storage.local.set({profile:p, fillHistory:[]})", await_profile)
                 extension_page.reload()
-                # A normal tab hosts the popup in this test. Route only its active-tab
-                # lookup to the fixture; all content-script messages stay real.
-                extension_page.evaluate("""async url => {
-                    const query = chrome.tabs.query.bind(chrome.tabs);
-                    const target = (await query({})).find(t => t.url === url);
-                    chrome.tabs.query = async options => options.active ? [target] : query(options);
-                }""", dynamic_url)
+                # The popup can also be opened as a normal extension tab. In that
+                # case the orchestrator must select the adjacent web page.
+                extension_page.bring_to_front()
                 extension_page.get_by_role("button", name="一键智能填写", exact=False).click()
                 extension_page.get_by_text("已验证 3 个，待确认 0 个，失败 0 个", exact=True).wait_for(timeout=15000)
                 assert page.locator("#major").input_value() == "计算机科学与技术"

@@ -1,6 +1,6 @@
 import type { DOMField, FillProposal } from '../types';
-import { findComponentAdapter } from './ComponentAdapters';
-import { canHandleGuopinField, fillGuopinField } from '../site/GuopinAdapter';
+import { dismissTransientOverlays, findComponentAdapter } from './ComponentAdapters';
+import { getSiteAdapter } from '../site/SiteAdapter';
 
 export interface FillAttempt {
   fieldId: string;
@@ -19,6 +19,7 @@ export async function fillForm(fields: DOMField[], proposals: FillProposal[]): P
     attempts.push(field
       ? await withTimeout(fillProposal(field, proposal), proposal.fieldId)
       : { fieldId: proposal.fieldId, success: false, reason: '扫描结果中不存在该字段' });
+    await dismissTransientOverlays();
   }
   return attempts;
 }
@@ -43,8 +44,9 @@ export async function fillProposal(field: DOMField, proposal: FillProposal): Pro
   }
   const element = document.querySelector<HTMLElement>(field.locator);
   if (!element) return { fieldId: proposal.fieldId, success: false, reason: '字段已从页面移除' };
-  if (location.hostname.endsWith('iguopin.com') && canHandleGuopinField(field, element)) {
-    const result = await fillGuopinField(field, element, proposal.value);
+  const siteAdapter = getSiteAdapter(location.href);
+  if (siteAdapter?.canFill(field, element)) {
+    const result = await siteAdapter.fill(field, element, proposal.value);
     return { fieldId: proposal.fieldId, ...result };
   }
   const adapter = findComponentAdapter(field, element);

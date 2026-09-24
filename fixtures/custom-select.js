@@ -1,5 +1,5 @@
 const select = document.querySelector('.ant-select');
-const menu = document.querySelector('.ant-select-dropdown');
+const menu = document.querySelector('.ant-form-item .ant-select-dropdown');
 const selected = document.querySelector('.selected');
 select.addEventListener('click', () => menu.classList.add('open'));
 menu.addEventListener('click', event => {

@@ -76,7 +76,7 @@ async function fillAntCalendar(input: HTMLInputElement, value: string): Promise<
   const parts = /^(\d{4})-(\d{2})(?:-(\d{2}))?$/.exec(value);
   if (!parts) return { success: false, reason: '日期必须为 YYYY-MM 或 YYYY-MM-DD' };
   const pause = () => new Promise(resolve => setTimeout(resolve, 80));
-  const panel = () => document.querySelector<HTMLElement>('.ant-picker-dropdown:not(.ant-picker-dropdown-hidden)');
+  const panel = () => latestVisible('.ant-picker-dropdown:not(.ant-picker-dropdown-hidden)');
   input.focus();
   clickOption(input);
   await pause();
@@ -202,7 +202,8 @@ class AntDesignSelectAdapter implements ComponentAdapter {
     let option = await waitForMatchingOption(value, 500, '.ant-select-dropdown:not(.ant-select-dropdown-hidden)', kind);
     // Ant virtual lists only render the current window of options.
     for (let page = 0; !option && page < 20; page++) {
-      const list = document.querySelector<HTMLElement>('.ant-select-dropdown:not(.ant-select-dropdown-hidden) .rc-virtual-list-holder');
+      const list = latestVisible('.ant-select-dropdown:not(.ant-select-dropdown-hidden)')
+        ?.querySelector<HTMLElement>('.rc-virtual-list-holder');
       if (!list || list.scrollTop + list.clientHeight >= list.scrollHeight) break;
       list.scrollTop += list.clientHeight;
       list.dispatchEvent(new Event('scroll', { bubbles: true }));
@@ -297,7 +298,7 @@ async function waitForAutocompleteCommit(element: HTMLElement, timeoutMs: number
 
 async function waitForMatchingOption(value: string, timeoutMs: number, scopeSelector?: string, kind: ValueKind = 'text'): Promise<HTMLElement | null> {
   const find = (): HTMLElement | null => {
-    const scope = scopeSelector ? document.querySelector(scopeSelector) : document;
+    const scope = scopeSelector ? latestVisible(scopeSelector) : document;
     if (!scope) return null;
     const options = scope.querySelectorAll<HTMLElement>('[role="option"], [class*="option"], [class*="item"], li');
     return Array.from(options).find(option => matchesSelectOption(value, option.textContent || '', kind)) || null;
@@ -319,6 +320,37 @@ async function waitForMatchingOption(value: string, timeoutMs: number, scopeSele
     };
     observer.observe(document.body, { childList: true, subtree: true, attributes: true });
   });
+}
+
+function latestVisible(selector: string): HTMLElement | null {
+  const elements = Array.from(document.querySelectorAll<HTMLElement>(selector));
+  const visible = elements.filter(element => {
+    const style = window.getComputedStyle(element);
+    const rect = element.getBoundingClientRect();
+    return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
+  });
+  return visible[visible.length - 1] || null;
+}
+
+export async function dismissTransientOverlays(): Promise<void> {
+  const overlays = Array.from(document.querySelectorAll<HTMLElement>(
+    '.ant-select-dropdown:not(.ant-select-dropdown-hidden), .ant-picker-dropdown:not(.ant-picker-dropdown-hidden), .ant-modal-wrap',
+  )).filter(element => {
+    const style = window.getComputedStyle(element);
+    return style.display !== 'none' && style.visibility !== 'hidden';
+  });
+  if (!overlays.length) return;
+
+  if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+  document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true }));
+  document.dispatchEvent(new KeyboardEvent('keyup', { key: 'Escape', code: 'Escape', bubbles: true }));
+  document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+  document.body.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+  overlays.forEach(overlay => {
+    const close = overlay.querySelector<HTMLElement>('.ant-modal-close, [aria-label="Close"], [aria-label="关闭"]');
+    if (close) clickOption(close);
+  });
+  await new Promise(resolve => setTimeout(resolve, 150));
 }
 
 function inferSelectValueKind(field: DOMField): ValueKind {

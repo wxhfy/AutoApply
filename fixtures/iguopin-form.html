@@ -39,6 +39,14 @@
     <input hidden class="ant-input" value="">
   </div>
 
+  <div class="ant-form-item resume-common-form-item cascader-modal-field cascader-modal-hukou">
+    <div class="ant-form-item-label"><label>户口所在地</label></div>
+    <div class="ant-form-item-control"><div class="ant-select ant-cascader"><div class="ant-select-selector">
+      <input id="hukou-fe-1601-customization" class="ant-select-selection-search-input fixed-control" role="combobox" readonly>
+      <span class="ant-select-selection-placeholder">请选择户口所在地</span>
+    </div></div></div>
+  </div>
+
   <div class="ant-form-item resume-common-form-item form-item-autocomplete-field autocomplete-highest_school auto-complete-field">
     <div class="ant-form-item-label"><label>毕业院校</label></div>
     <div class="ant-form-item-control"><div><div><div><div>
@@ -84,4 +92,42 @@ function renderCalendar(mode) {
 birth.onclick = () => {
   popup?.remove(); popup = document.createElement('div'); popup.className = 'ant-picker-dropdown'; document.body.append(popup); renderCalendar('date');
 };
+
+
+// Keep an old visible address modal to reproduce Guopin retaining overlays.
+function addressModal(field, zIndex) {
+  const wrap = document.createElement('div');
+  wrap.className = 'ant-modal-wrap'; wrap.style.cssText = `position:fixed;inset:0;z-index:${zIndex};background:#fff`;
+  let selected = [];
+  const levels = [
+    field === 'hukou' ? ['江西', '北京'] : ['河北', '北京'],
+    field === 'hukou' ? ['南昌'] : ['秦皇岛'],
+    field === 'hukou' ? ['进贤县'] : ['海港区'],
+  ];
+  const render = () => {
+    wrap.innerHTML = '<button class="ant-modal-close" type="button">关闭</button><div class="address-options"></div>';
+    wrap.querySelector('.ant-modal-close').onclick = () => wrap.remove();
+    const options = wrap.querySelector('.address-options');
+    for (const text of levels[selected.length] || []) {
+      const item = document.createElement('button'); item.type = 'button'; item.className = 'level-item'; item.textContent = text;
+      item.onclick = () => {
+        selected.push(text);
+        if (selected.length === 3) {
+          const control = document.querySelector(`#${field}-fe-1601-customization`).closest('.ant-select');
+          control.querySelector('.ant-select-selection-placeholder')?.remove();
+          let value = control.querySelector('.ant-select-selection-item');
+          if (!value) { value = document.createElement('span'); value.className = 'ant-select-selection-item'; control.append(value); }
+          value.textContent = `中国 / ${selected.join(' / ')}`;
+          wrap.remove();
+        } else render();
+      };
+      options.append(item);
+    }
+  };
+  render(); document.body.append(wrap); return wrap;
+}
+const stale = addressModal('location', 900);
+stale.querySelector('.ant-modal-close').remove();
+document.querySelector('#location-fe-1601-customization').closest('.ant-select-selector').onclick = () => addressModal('location', 1100);
+document.querySelector('#hukou-fe-1601-customization').closest('.ant-select-selector').onclick = () => addressModal('hukou', 1200);
 </script>

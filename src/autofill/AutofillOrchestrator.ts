@@ -15,7 +15,7 @@ export async function runAutofill(
   profile: UserProfile,
   onProgress?: (progress: AutofillProgress) => void,
 ): Promise<AutofillSummary> {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  const tab = await findTargetTab();
   if (!tab?.id) throw new Error('无法访问当前标签页');
   await ensureContentScript(tab.id);
 
@@ -111,15 +111,39 @@ export async function runAutofill(
   return summary;
 }
 
+async function findTargetTab(): Promise<chrome.tabs.Tab | undefined> {
+  const tabs = await chrome.tabs.query({ currentWindow: true });
+  const active = tabs.find(tab => tab.active);
+  if (isWebPage(active)) return active;
+
+  return tabs
+    .filter(isWebPage)
+    .sort((left, right) => (right.lastAccessed || 0) - (left.lastAccessed || 0))[0];
+}
+
+function isWebPage(tab: chrome.tabs.Tab | undefined): tab is chrome.tabs.Tab {
+  return !!tab?.url && /^https?:\/\//i.test(tab.url);
+}
+
 async function ensureContentScript(tabId: number): Promise<void> {
   try {
     await chrome.tabs.sendMessage(tabId, { type: '__PING__' });
+    return;
   } catch {
     const files = chrome.runtime.getManifest().content_scripts?.[0]?.js;
     if (!files?.length) throw new Error('Content script not found in manifest');
     await chrome.scripting.executeScript({ target: { tabId }, files });
-    await new Promise(resolve => setTimeout(resolve, 100));
   }
+
+  for (let attempt = 0; attempt < 20; attempt++) {
+    try {
+      await chrome.tabs.sendMessage(tabId, { type: '__PING__' });
+      return;
+    } catch {
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+  }
+  throw new Error('页面脚本注入后未能建立连接，请刷新页面后重试');
 }
 
 function sendMessage<T = any>(tabId: number, message: any): Promise<T> {

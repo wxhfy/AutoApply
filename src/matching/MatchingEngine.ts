@@ -23,9 +23,10 @@ function matchField(field: DOMField, profile: UserProfile, now: Date): FillPropo
   const rawValue = resolveProfileValue(profile, matched.rule.profilePath, now);
   if (!rawValue) return review(field, 'Profile 未提供明确值', matched.rule.fieldType as FillProposal['fieldType'], matched.confidence);
 
+  const adaptedValue = matched.rule.locationDepth ? truncateLocation(rawValue, matched.rule.locationDepth) : rawValue;
   const value = field.options?.length
-    ? findMatchingOption(rawValue, field.options, matched.rule.valueKind) || null
-    : rawValue;
+    ? findMatchingOption(adaptedValue, field.options, matched.rule.valueKind) || null
+    : adaptedValue;
 
   if (!value) return review(field, '页面选项无法确定匹配', matched.rule.fieldType as FillProposal['fieldType'], matched.confidence);
 
@@ -39,6 +40,13 @@ function matchField(field: DOMField, profile: UserProfile, now: Date): FillPropo
     action: 'auto_fill',
     source: 'rule',
   };
+}
+
+function truncateLocation(value: string, depth: number): string {
+  const compact = value.replace(/[>/／|,，\s]+/g, '');
+  const match = /^(.*?省)(.*?市)(.*?[区县])?$/.exec(compact);
+  if (match) return match.slice(1, depth + 1).filter(Boolean).join('');
+  return value.split(/[>/／|,，\s]+/).filter(Boolean).slice(0, depth).join(' / ');
 }
 
 function findRule(labels: string[]): { rule: FieldRule; confidence: number; reason: string } | null {

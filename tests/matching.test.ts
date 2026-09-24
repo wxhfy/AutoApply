@@ -5,6 +5,7 @@ import { formatDateForControl, normalizeValue } from '../src/matching/ValueNorma
 import { matchesDateOption, matchesSelectOption } from '../src/content/ComponentAdapters.ts';
 import { parseGuopinAddress } from '../src/site/GuopinAdapter.ts';
 import { deriveAcademicGrade } from '../src/matching/MatchingEngine.ts';
+import { getSiteAdapter } from '../src/site/SiteAdapter.ts';
 
 const profile = {
   basic: {
@@ -135,7 +136,26 @@ test('matches Guopin fields by their stable control ids', () => {
 
 test('adapts structured profile addresses to Guopin province and city option text', () => {
   assert.deepEqual(parseGuopinAddress('河北省秦皇岛市海港区'), ['河北', '秦皇岛', '海港区']);
+  assert.deepEqual(parseGuopinAddress('河北省秦皇岛市'), ['河北', '秦皇岛']);
   assert.deepEqual(parseGuopinAddress('江西省 / 南昌市 / 进贤县'), ['江西', '南昌', '进贤县']);
+});
+
+test('keeps site-specific behavior behind the site-adapter registry', () => {
+  assert.ok(getSiteAdapter('https://c.iguopin.com/basic-info'));
+  assert.equal(getSiteAdapter('https://example.com/application'), null);
+});
+
+test('uses a two-level location for work-region fields without truncating home addresses', () => {
+  const proposals = matchFields([
+    { id: 'work-region', tag: 'input', type: 'search', label: '工作地区', placeholder: '', name: '', ariaLabel: '', nearbyText: '', currentValue: '', required: true, componentType: 'cascader', locator: '#work-region' },
+    { id: 'home', tag: 'input', type: 'search', label: '现居住地', placeholder: '', name: '', ariaLabel: '', nearbyText: '', currentValue: '', required: true, componentType: 'cascader', locator: '#home' },
+  ], {
+    ...profile,
+    basic: { ...profile.basic, currentCity: '河北省秦皇岛市海港区' },
+  });
+
+  assert.equal(proposals[0].value, '河北省秦皇岛市');
+  assert.equal(proposals[1].value, '河北省秦皇岛市海港区');
 });
 
 test('normalizes Guopin address display text to the same profile value', () => {
