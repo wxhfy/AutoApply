@@ -10,10 +10,6 @@ function matchField(field: DOMField, profile: UserProfile): FillProposal {
   if (field.currentValue.trim()) {
     return review(field, '页面已有值，默认不覆盖');
   }
-  if (field.componentType === 'cascader') {
-    return review(field, '省市区层级控件暂需人工确认');
-  }
-
   const labels = [field.label, field.name, field.placeholder, field.ariaLabel]
     .filter(Boolean)
     .map(normalizeLabel);

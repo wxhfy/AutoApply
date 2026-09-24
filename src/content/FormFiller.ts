@@ -1,5 +1,6 @@
 import type { DOMField, FillProposal } from '../types';
 import { findComponentAdapter } from './ComponentAdapters';
+import { canHandleGuopinField, fillGuopinField } from '../site/GuopinAdapter';
 
 export interface FillAttempt {
   fieldId: string;
@@ -26,6 +27,10 @@ export async function fillProposal(field: DOMField, proposal: FillProposal): Pro
   }
   const element = document.querySelector<HTMLElement>(field.locator);
   if (!element) return { fieldId: proposal.fieldId, success: false, reason: '字段已从页面移除' };
+  if (location.hostname.endsWith('iguopin.com') && canHandleGuopinField(field, element)) {
+    const result = await fillGuopinField(field, element, proposal.value);
+    return { fieldId: proposal.fieldId, ...result };
+  }
   const adapter = findComponentAdapter(field, element);
   if (!adapter) return { fieldId: proposal.fieldId, success: false, reason: `不支持的组件：${field.componentType}` };
   const result = await adapter.fill(field, element, proposal.value);
