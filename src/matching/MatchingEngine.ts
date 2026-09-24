@@ -37,6 +37,7 @@ function matchField(field: DOMField, profile: UserProfile): FillProposal {
     confidence: matched.confidence,
     reason: matched.reason,
     action: 'auto_fill',
+    source: 'rule',
   };
 }
 

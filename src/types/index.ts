@@ -169,6 +169,7 @@ export interface FillProposal {
   confidence: number;
   reason: string;
   action: FillAction;
+  source?: 'rule' | 'llm';
 }
 
 export type VerifyStatus = 'VERIFIED' | 'REVIEW' | 'ERROR';
@@ -181,6 +182,7 @@ export interface VerifyResult {
   normalizedExpected: string | null;
   normalizedActual: string | null;
   reason?: string;
+  source?: 'rule' | 'llm';
 }
 
 export interface AutofillSummary {

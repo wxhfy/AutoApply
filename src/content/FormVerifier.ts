@@ -24,7 +24,10 @@ export function verifyField(field: DOMField, proposal?: FillProposal): VerifyRes
     return { fieldId: field.id, status: 'REVIEW', expectedValue, actualValue, normalizedExpected, normalizedActual, reason: 'autocomplete 文本存在，但隐藏 ID 未提交' };
   }
 
-  return { fieldId: field.id, status: 'VERIFIED', expectedValue, actualValue, normalizedExpected, normalizedActual };
+  if (proposal.source === 'llm') {
+    return { fieldId: field.id, status: 'REVIEW', expectedValue, actualValue, normalizedExpected, normalizedActual, source: 'llm', reason: '内容由模型生成，请人工确认后提交' };
+  }
+  return { fieldId: field.id, status: 'VERIFIED', expectedValue, actualValue, normalizedExpected, normalizedActual, source: proposal.source };
 }
 
 function result(fieldId: string, status: VerifyResult['status'], expectedValue: string | null, actualValue: string | null, reason: string): VerifyResult {
