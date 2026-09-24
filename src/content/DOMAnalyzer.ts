@@ -55,6 +55,7 @@ export function analyzePage(): DOMField[] {
     // Skip duplicates and very small/hidden elements
     if (seen.has(element)) return;
     if (isHidden(element)) return;
+    if (isTransientOverlayControl(element)) return;
     if (!element.closest('form, .ant-form-item, .el-form-item') && /请输入职位或企业名称/.test(getPlaceholder(element))) return;
     seen.add(element);
 
@@ -79,7 +80,7 @@ export function analyzePage(): DOMField[] {
       type: (inputEl as HTMLInputElement).type || element.getAttribute('role') || 'text',
       label: findLabel(radioGroup || element),
       placeholder: getPlaceholder(element),
-      name: inputEl.name || element.getAttribute('data-name') || element.getAttribute('data-field') || '',
+      name: inputEl.name || element.getAttribute('data-name') || element.getAttribute('data-field') || element.id || '',
       ariaLabel: element.getAttribute('aria-label') || '',
       nearbyText: findNearbyText(element),
       currentValue: getCurrentValue(element),
@@ -169,6 +170,13 @@ function isHidden(el: HTMLElement): boolean {
     if (wrapperRect && wrapperRect.width > 0 && wrapperRect.height > 0) return false;
   }
   return true;
+}
+
+function isTransientOverlayControl(element: HTMLElement): boolean {
+  const overlay = element.closest<HTMLElement>(
+    '[role="dialog"], .ant-modal-wrap, .ant-select-dropdown, [class*="cascader-modal"], [class*="picker-dropdown"]',
+  );
+  return !!overlay && !element.closest('form');
 }
 
 // ─── Label Detection (multi-strategy) ───

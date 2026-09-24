@@ -1,11 +1,12 @@
 import type { DOMField, FillProposal, VerifyResult } from '../types';
 import { formatDateForControl, normalizeValue, type ValueKind } from '../matching/ValueNormalizer';
+import { findAutocompleteIdField } from './ComponentAdapters';
 
 export function verifyField(field: DOMField, proposal?: FillProposal): VerifyResult {
   if (!proposal) return result(field.id, 'REVIEW', null, field.currentValue || null, '字段没有对应的填写提案');
   const expectedValue = proposal.value;
   const element = document.querySelector<HTMLElement>(field.locator);
-  if (!expectedValue) return result(field.id, 'REVIEW', null, field.currentValue || null, '没有可自动填写的确定值');
+  if (!expectedValue) return result(field.id, 'REVIEW', null, field.currentValue || null, proposal.reason || '没有可自动填写的确定值');
   if (!element) return result(field.id, 'ERROR', expectedValue, null, '字段已从页面移除');
   if (element.getAttribute('aria-invalid') === 'true') return result(field.id, 'ERROR', expectedValue, readValue(field, element), '页面标记为无效');
 
@@ -62,14 +63,12 @@ function readValue(field: DOMField, element: HTMLElement): string | null {
 function valueKind(field: DOMField, proposal: FillProposal): ValueKind {
   if (proposal.fieldType === 'DEGREE') return 'degree';
   if (proposal.fieldType === 'GENDER') return 'gender';
+  if (proposal.fieldType === 'LOCATION') return 'location';
   if (field.componentType === 'date') return 'date';
   return 'text';
 }
 
 function hasUncommittedAutocompleteId(element: HTMLElement): boolean {
-  const container = element.closest('[data-autofill-autocomplete], .autocomplete, [class*="autocomplete"]');
-  const baseId = element.id.split('-fe-')[0];
-  const idField = container?.querySelector<HTMLInputElement>('input[type="hidden"][name*="id" i]')
-    || (baseId !== element.id ? container?.querySelector<HTMLInputElement>(`input[id="${CSS.escape(baseId)}"]`) : null);
+  const idField = findAutocompleteIdField(element);
   return !!idField && !idField.value;
 }

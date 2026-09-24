@@ -8,6 +8,8 @@ export interface FillAttempt {
   reason?: string;
 }
 
+const FIELD_TIMEOUT_MS = 10_000;
+
 export async function fillForm(fields: DOMField[], proposals: FillProposal[]): Promise<FillAttempt[]> {
   const byId = new Map(fields.map(field => [field.id, field]));
   const attempts: FillAttempt[] = [];
@@ -15,10 +17,24 @@ export async function fillForm(fields: DOMField[], proposals: FillProposal[]): P
     if (proposal.action !== 'auto_fill' || !proposal.value) continue;
     const field = byId.get(proposal.fieldId);
     attempts.push(field
-      ? await fillProposal(field, proposal)
+      ? await withTimeout(fillProposal(field, proposal), proposal.fieldId)
       : { fieldId: proposal.fieldId, success: false, reason: '扫描结果中不存在该字段' });
   }
   return attempts;
+}
+
+async function withTimeout(attempt: Promise<FillAttempt>, fieldId: string): Promise<FillAttempt> {
+  let timer = 0;
+  const timeout = new Promise<FillAttempt>(resolve => {
+    timer = window.setTimeout(() => resolve({
+      fieldId,
+      success: false,
+      reason: `控件在 ${FIELD_TIMEOUT_MS / 1000} 秒内未完成提交`,
+    }), FIELD_TIMEOUT_MS);
+  });
+  const result = await Promise.race([attempt, timeout]);
+  window.clearTimeout(timer);
+  return result;
 }
 
 export async function fillProposal(field: DOMField, proposal: FillProposal): Promise<FillAttempt> {

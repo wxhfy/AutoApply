@@ -1,5 +1,5 @@
 import type { DOMField } from '../types';
-import { formatDateForControl, normalizeValue } from '../matching/ValueNormalizer.ts';
+import { formatDateForControl, normalizeValue, type ValueKind } from '../matching/ValueNormalizer.ts';
 
 export interface AdapterFillResult {
   success: boolean;
@@ -171,10 +171,20 @@ class AutocompleteAdapter implements ComponentAdapter {
     const trigger = input.closest('.ant-select')?.querySelector<HTMLElement>('.ant-select-selector');
     if (trigger) clickOption(trigger);
     setNativeValue(input, value, false);
-    const option = await waitForMatchingOption(value, 1_500);
+    const optionScope = input.closest('.ant-select')
+      ? '.ant-select-dropdown:not(.ant-select-dropdown-hidden)'
+      : undefined;
+    const option = await waitForMatchingOption(
+      value,
+      5_000,
+      optionScope,
+    );
     if (!option) return { success: false, reason: '候选项未出现或未精确匹配' };
     clickOption(option);
-    return { success: true };
+    const committed = await waitForAutocompleteCommit(input, 2_000);
+    return committed
+      ? { success: true }
+      : { success: false, reason: 'autocomplete 候选文本已点击，但选项 ID 未提交' };
   }
 }
 
@@ -185,21 +195,23 @@ class AntDesignSelectAdapter implements ComponentAdapter {
     return field.componentType === 'custom-select' && !!element.closest('.ant-select, [class*="ant-select"]');
   }
 
-  async fill(_field: DOMField, element: HTMLElement, value: string): Promise<AdapterFillResult> {
+  async fill(field: DOMField, element: HTMLElement, value: string): Promise<AdapterFillResult> {
     const trigger = element.closest('.ant-select')?.querySelector<HTMLElement>('.ant-select-selector') || element;
     clickOption(trigger);
-    let option = await waitForMatchingOption(value, 500, '.ant-select-dropdown:not(.ant-select-dropdown-hidden)');
+    const kind = inferSelectValueKind(field);
+    let option = await waitForMatchingOption(value, 500, '.ant-select-dropdown:not(.ant-select-dropdown-hidden)', kind);
     // Ant virtual lists only render the current window of options.
     for (let page = 0; !option && page < 20; page++) {
       const list = document.querySelector<HTMLElement>('.ant-select-dropdown:not(.ant-select-dropdown-hidden) .rc-virtual-list-holder');
       if (!list || list.scrollTop + list.clientHeight >= list.scrollHeight) break;
       list.scrollTop += list.clientHeight;
       list.dispatchEvent(new Event('scroll', { bubbles: true }));
-      option = await waitForMatchingOption(value, 150, '.ant-select-dropdown:not(.ant-select-dropdown-hidden)');
+      option = await waitForMatchingOption(value, 150, '.ant-select-dropdown:not(.ant-select-dropdown-hidden)', kind);
     }
     if (!option) return { success: false, reason: 'Ant Design 选项未匹配' };
-    clickOption(option);
-    return { success: true };
+    clickOption(getInteractiveOption(option));
+    const committed = await waitForSelectedValue(element, value, 1_500, kind);
+    return committed ? { success: true } : { success: false, reason: 'Ant Design 选项已点击但未提交' };
   }
 }
 
@@ -214,8 +226,9 @@ class ElementPlusSelectAdapter implements ComponentAdapter {
     element.click();
     const option = await waitForMatchingOption(value, 1_500, '.el-select-dropdown');
     if (!option) return { success: false, reason: 'Element Plus 选项未匹配' };
-    clickOption(option);
-    return { success: true };
+    clickOption(getInteractiveOption(option));
+    const committed = await waitForSelectedValue(element, value, 1_500);
+    return committed ? { success: true } : { success: false, reason: 'Element Plus 选项已点击但未提交' };
   }
 }
 
@@ -230,8 +243,9 @@ class GenericSelectAdapter implements ComponentAdapter {
     element.click();
     const option = await waitForMatchingOption(value, 1_500);
     if (!option) return { success: false, reason: '自定义下拉选项未匹配' };
-    clickOption(option);
-    return { success: true };
+    clickOption(getInteractiveOption(option));
+    const committed = await waitForSelectedValue(element, value, 1_500);
+    return committed ? { success: true } : { success: false, reason: '自定义下拉选项已点击但未提交' };
   }
 }
 
@@ -262,12 +276,31 @@ function getLabel(input: HTMLInputElement): string {
   return input.closest('label')?.textContent || input.nextElementSibling?.textContent || '';
 }
 
-async function waitForMatchingOption(value: string, timeoutMs: number, scopeSelector?: string): Promise<HTMLElement | null> {
+export function findAutocompleteIdField(element: HTMLElement): HTMLInputElement | null {
+  const container = element.closest<HTMLElement>('[data-autofill-autocomplete], .autocomplete, [class*="autocomplete"]');
+  if (!container) return null;
+  const baseId = element.id.split('-fe-')[0];
+  return container.querySelector<HTMLInputElement>('input[type="hidden"][name*="id" i]')
+    || (baseId !== element.id ? container.querySelector<HTMLInputElement>(`input[id="${CSS.escape(baseId)}"]`) : null);
+}
+
+async function waitForAutocompleteCommit(element: HTMLElement, timeoutMs: number): Promise<boolean> {
+  const idField = findAutocompleteIdField(element);
+  if (!idField) return true;
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (idField.value) return true;
+    await new Promise(resolve => setTimeout(resolve, 50));
+  }
+  return !!idField.value;
+}
+
+async function waitForMatchingOption(value: string, timeoutMs: number, scopeSelector?: string, kind: ValueKind = 'text'): Promise<HTMLElement | null> {
   const find = (): HTMLElement | null => {
     const scope = scopeSelector ? document.querySelector(scopeSelector) : document;
     if (!scope) return null;
     const options = scope.querySelectorAll<HTMLElement>('[role="option"], [class*="option"], [class*="item"], li');
-    return Array.from(options).find(option => sameText(option.textContent || '', value)) || null;
+    return Array.from(options).find(option => matchesSelectOption(value, option.textContent || '', kind)) || null;
   };
 
   const immediate = find();
@@ -286,6 +319,41 @@ async function waitForMatchingOption(value: string, timeoutMs: number, scopeSele
     };
     observer.observe(document.body, { childList: true, subtree: true, attributes: true });
   });
+}
+
+function inferSelectValueKind(field: DOMField): ValueKind {
+  return /学历|学位|degree|educationlevel/i.test(`${field.label} ${field.name}`) ? 'degree' : 'text';
+}
+
+export function matchesSelectOption(expected: string, candidate: string, kind: ValueKind = 'text'): boolean {
+  if (kind === 'text') return sameText(expected, candidate);
+  const normalizedExpected = normalizeValue(expected, kind);
+  const normalizedCandidate = normalizeValue(candidate, kind);
+  return !!normalizedExpected && normalizedExpected === normalizedCandidate;
+}
+
+function getInteractiveOption(element: HTMLElement): HTMLElement {
+  return element.closest<HTMLElement>(
+    '[role="option"], .ant-select-item-option, .el-select-dropdown__item, li, button',
+  ) || element;
+}
+
+async function waitForSelectedValue(element: HTMLElement, value: string, timeoutMs: number, kind: ValueKind = 'text'): Promise<boolean> {
+  const read = (): string => {
+    const container = element.closest<HTMLElement>('.ant-select, .el-select, [class*="select"]');
+    const selected = container?.querySelector<HTMLElement>(
+      '.ant-select-selection-item, .el-select__selected-item, [class*="singleValue"], [class*="selected"]',
+    );
+    if (selected?.textContent?.trim()) return selected.textContent.trim();
+    if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) return element.value;
+    return element.textContent?.trim() || '';
+  };
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (matchesSelectOption(value, read(), kind)) return true;
+    await new Promise(resolve => setTimeout(resolve, 50));
+  }
+  return matchesSelectOption(value, read(), kind);
 }
 
 export function matchesDateOption(expected: string, candidate: string): boolean {

@@ -58,10 +58,22 @@ export async function runAutofill(
   const fillableCount = proposals.filter(proposal => proposal.action === 'auto_fill').length;
 
   onProgress?.({ step: 'fill', detail: '正在写入可确定字段', current: 0, total: fillableCount });
-  const fillResponse = await sendMessage<{ type: 'FILL_BATCH_RESULT'; attempts: { fieldId: string; success: boolean; reason?: string }[] }>(tab.id, {
-    type: 'FILL_BATCH', fields: scan.fields, proposals,
-  });
-  if (fillResponse.type !== 'FILL_BATCH_RESULT') throw new Error('填写阶段没有返回结果');
+  const fillable = proposals.filter(proposal => proposal.action === 'auto_fill');
+  const fillAttempts: { fieldId: string; success: boolean; reason?: string }[] = [];
+  for (let index = 0; index < fillable.length; index++) {
+    const proposal = fillable[index];
+    const response = await sendMessage<{ type: 'FILL_BATCH_RESULT'; attempts: { fieldId: string; success: boolean; reason?: string }[] }>(tab.id, {
+      type: 'FILL_BATCH', fields: scan.fields, proposals: [proposal],
+    });
+    if (response.type !== 'FILL_BATCH_RESULT') throw new Error('填写阶段没有返回结果');
+    fillAttempts.push(...response.attempts);
+    onProgress?.({
+      step: 'fill',
+      detail: proposal.originalLabel ? `已处理：${proposal.originalLabel}` : '正在写入可确定字段',
+      current: index + 1,
+      total: fillableCount,
+    });
+  }
 
   onProgress?.({ step: 'verify', detail: '正在重新读取并验证结果' });
   const verifyResponse = await sendMessage<{ type: 'VERIFY_BATCH_RESULT'; results: VerifyResult[] }>(tab.id, {
@@ -69,7 +81,7 @@ export async function runAutofill(
   });
   if (verifyResponse.type !== 'VERIFY_BATCH_RESULT') throw new Error('验证阶段没有返回结果');
 
-  const attempts = new Map(fillResponse.attempts.map(attempt => [attempt.fieldId, attempt]));
+  const attempts = new Map(fillAttempts.map(attempt => [attempt.fieldId, attempt]));
   const results = verifyResponse.results.map(result => {
     const attempt = attempts.get(result.fieldId);
     return attempt && !attempt.success && result.status === 'ERROR' && attempt.reason

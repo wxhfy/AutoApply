@@ -263,7 +263,7 @@ export function createLLMClient(
           confidence,
           reason: String(r.reason || ''),
           action: classifyAction(confidence),
-          source: 'llm',
+          source: 'llm' as const,
         };
       });
 

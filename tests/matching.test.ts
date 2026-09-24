@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { matchFields } from '../src/matching/MatchingEngine.ts';
 import { formatDateForControl, normalizeValue } from '../src/matching/ValueNormalizer.ts';
-import { matchesDateOption } from '../src/content/ComponentAdapters.ts';
+import { matchesDateOption, matchesSelectOption } from '../src/content/ComponentAdapters.ts';
+import { parseGuopinAddress } from '../src/site/GuopinAdapter.ts';
+import { deriveAcademicGrade } from '../src/matching/MatchingEngine.ts';
 
 const profile = {
   basic: {
@@ -19,7 +21,7 @@ const profile = {
   links: { github: '', linkedin: '', website: '' },
   education: [{
     school: '燕山大学', college: '', major: '计算机科学与技术', degree: '硕士研究生',
-    gpa: '', courses: '', startDate: '', endDate: '2027-06', cet4: '550', cet6: '500',
+    gpa: '', courses: '', startDate: '2024-09', endDate: '2027-06', cet4: '550', cet6: '500',
   }],
   experience: [], internships: [], projects: [], awards: [], skills: [], selfIntroduction: '',
 };
@@ -100,11 +102,60 @@ test('keeps human-gate fields out of automatic filling', () => {
   assert.equal(proposal.value, null);
 });
 
-test('keeps cascader fields in review until the profile has a structured address', () => {
+test('keeps unmatched cascader fields in review', () => {
   const [proposal] = matchFields([
     { id: 'native-place', tag: 'div', type: 'combobox', label: '籍贯', placeholder: '', name: '', ariaLabel: '', nearbyText: '', currentValue: '', required: true, componentType: 'cascader', locator: '[data-jf-id="native-place"]' },
   ], profile);
 
   assert.equal(proposal.action, 'confirm');
-  assert.equal(proposal.reason, '省市区层级控件暂需人工确认');
+  assert.equal(proposal.reason, '没有确定性规则匹配');
+});
+
+test('matches Guopin fields by their stable control ids', () => {
+  const proposals = matchFields([
+    { id: 'status', tag: 'input', type: 'search', label: '', placeholder: '', name: 'work_status', ariaLabel: '', nearbyText: '', currentValue: '', required: true, componentType: 'custom-select', locator: '#work_status' },
+    { id: 'location', tag: 'input', type: 'search', label: '', placeholder: '', name: 'location-fe-1601-customization', ariaLabel: '', nearbyText: '', currentValue: '', required: true, componentType: 'cascader', locator: '#location-fe-1601-customization' },
+    { id: 'hukou', tag: 'input', type: 'search', label: '', placeholder: '', name: 'hukou-fe-1601-customization', ariaLabel: '', nearbyText: '', currentValue: '', required: true, componentType: 'cascader', locator: '#hukou-fe-1601-customization' },
+  ], {
+    ...profile,
+    basic: {
+      ...profile.basic,
+      currentCity: '河北省秦皇岛市海港区',
+      hukouPlace: '江西省南昌市进贤县',
+      jobStatus: '我是毕业生，参加校招',
+    },
+  });
+
+  assert.deepEqual(proposals.map(({ value, action }) => ({ value, action })), [
+    { value: '我是毕业生，参加校招', action: 'auto_fill' },
+    { value: '河北省秦皇岛市海港区', action: 'auto_fill' },
+    { value: '江西省南昌市进贤县', action: 'auto_fill' },
+  ]);
+});
+
+test('adapts structured profile addresses to Guopin province and city option text', () => {
+  assert.deepEqual(parseGuopinAddress('河北省秦皇岛市海港区'), ['河北', '秦皇岛', '海港区']);
+  assert.deepEqual(parseGuopinAddress('江西省 / 南昌市 / 进贤县'), ['江西', '南昌', '进贤县']);
+});
+
+test('normalizes Guopin address display text to the same profile value', () => {
+  assert.equal(normalizeValue('河北省秦皇岛市海港区', 'location'), '河北秦皇岛海港区');
+  assert.equal(normalizeValue('中国 / 河北 / 秦皇岛 / 海港区', 'location'), '河北秦皇岛海港区');
+});
+
+test('derives the current academic grade from degree and graduation month', () => {
+  const [proposal] = matchFields([
+    { id: 'grade', tag: 'input', type: 'search', label: '年级', placeholder: '请选择', name: 'grade', ariaLabel: '', nearbyText: '', currentValue: '', required: true, componentType: 'custom-select', locator: '#grade' },
+  ], profile, new Date('2026-09-24T00:00:00+08:00'));
+
+  assert.equal(proposal.value, '研三');
+  assert.equal(proposal.action, 'auto_fill');
+  assert.equal(proposal.source, 'rule');
+  assert.equal(deriveAcademicGrade('2023-09', '2027-06', '本科', new Date('2026-02-01T00:00:00+08:00')), '大三');
+  assert.equal(deriveAcademicGrade('', '2027-06', '硕士研究生', new Date('2026-09-24T00:00:00+08:00')), null);
+});
+
+test('matches page degree labels through canonical degree values', () => {
+  assert.equal(matchesSelectOption('硕士研究生', '硕士', 'degree'), true);
+  assert.equal(matchesSelectOption('硕士研究生', '本科', 'degree'), false);
 });

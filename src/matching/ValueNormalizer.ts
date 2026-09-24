@@ -1,4 +1,4 @@
-export type ValueKind = 'degree' | 'gender' | 'boolean' | 'date' | 'text';
+export type ValueKind = 'degree' | 'gender' | 'boolean' | 'date' | 'location' | 'text';
 
 const DEGREE_ALIASES: Record<string, string> = {
   本科: 'BACHELOR',
@@ -26,6 +26,12 @@ const BOOLEAN_ALIASES: Record<string, string> = {
 
 export function normalizeValue(value: string, kind: ValueKind = 'text'): string {
   const trimmed = value.trim();
+  if (kind === 'location') {
+    return trimmed
+      .replace(/^中国\s*[>/／|,，-]?\s*/, '')
+      .replace(/[>/／|,，\s-]+/g, '')
+      .replace(/特别行政区|维吾尔自治区|壮族自治区|回族自治区|自治区|自治州|省|市/g, '');
+  }
   if (kind === 'date') {
     const parts = trimmed.match(/\d+/g);
     if (!parts || parts.length < 2 || parts.length > 3) return trimmed.toLowerCase().replace(/\s+/g, '');
